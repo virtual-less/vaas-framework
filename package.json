@@ -1,0 +1,26 @@
+{
+  "name": "@vaas/framework",
+  "version": "1.0.0",
+  "description": "Virtual as a Service Framework",
+  "main": "./build/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/virtual-less/vaas-framework.git"
+  },
+  "keywords": [
+    "virtual",
+    "service",
+    "server",
+    "less",
+    "framework"
+  ],
+  "author": "zy445566",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/virtual-less/vaas-framework/issues"
+  },
+  "homepage": "https://github.com/virtual-less/vaas-framework#readme"
+}
