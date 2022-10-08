@@ -92,7 +92,7 @@ class VaasWorkerSet extends Set<VaasWorker> {
 }
 
 export class VaasWorkPool {
-    pool:Map<string,VaasWorkerSet>
+    pool:Map<string,VaasWorkerSet> = new Map<string,VaasWorkerSet>()
     workerRecycleCheckTime:number;
     static instance:VaasWorkPool = null
     constructor() {
@@ -130,7 +130,11 @@ export class VaasWorkPool {
             worker.once('message', (message:WorkerMessage)=>{
                 if(message.type!=='init') {
                     worker.terminate()
-                    throw new Error(`init ${appName} worker failed`)
+                    if(message.type==='error') {
+                        throw message.data.error
+                    } else {
+                        throw new Error(`init ${appName} worker failed`)
+                    }
                 }
                 worker.appServerConfigMap = message.data.appConfig
                 return reslove(worker)

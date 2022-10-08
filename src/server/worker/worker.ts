@@ -1,5 +1,5 @@
 import {dynamicRun} from 'vaas-core'
-import * as fsPromises from 'fs/promises'
+import {promises as fsPromises} from 'fs'
 import * as path from 'path'
 import {parentPort, workerData} from 'worker_threads'
 

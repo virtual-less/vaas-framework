@@ -228,6 +228,11 @@ export interface ResponseConfig {
     etag: string;
 }
 
+export interface HttpParams {
+  req:RequestConfig,
+  res:ResponseConfig
+}
+
 export type  WorkerMessageType = 'init' | 'error' | 'execute' | 'result'
 export interface ExecuteMessageBody {
     serveName:string, 
