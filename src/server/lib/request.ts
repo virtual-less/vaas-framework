@@ -36,10 +36,10 @@ export class Request {
         return Object.assign(request, requestConfig)
     }
 
-    async rpcInvote(remoteVaasServerName:string, params:any) {
-        const functionNameData = /^(\w+)\.(\w+)$/.exec(remoteVaasServerName);
-        if(!functionNameData) {
-            throw new Error(`remoteVaasServerName[${remoteVaasServerName}] invalid! must be app.function and only [a-zA-Z0-9_]`)
-        }
-    }
+    // async rpcInvote(remoteVaasServerName:string, params:any) {
+    //     const functionNameData = /^(\w+)\.(\w+)$/.exec(remoteVaasServerName);
+    //     if(!functionNameData) {
+    //         throw new Error(`remoteVaasServerName[${remoteVaasServerName}] invalid! must be app.function and only [a-zA-Z0-9_]`)
+    //     }
+    // }
 }
