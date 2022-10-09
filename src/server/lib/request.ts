@@ -1,7 +1,8 @@
 import * as Koa from 'koa';
 import {RequestConfig} from '../../types/server'
+import {HttpBase} from './httpbase'
 
-export class Request {
+export class Request extends HttpBase {
 
     static getRequestConfigByRequest(request:Koa.Request):RequestConfig {
         return {
@@ -33,13 +34,6 @@ export class Request {
     static mergeRequestConfig2Request({
         request, requestConfig
     }:{request:Koa.Request, requestConfig:RequestConfig}):Koa.Request {
-        return Object.assign(request, requestConfig)
+        return HttpBase.mergeHttpObject(request, requestConfig)
     }
-
-    // async rpcInvote(remoteVaasServerName:string, params:any) {
-    //     const functionNameData = /^(\w+)\.(\w+)$/.exec(remoteVaasServerName);
-    //     if(!functionNameData) {
-    //         throw new Error(`remoteVaasServerName[${remoteVaasServerName}] invalid! must be app.function and only [a-zA-Z0-9_]`)
-    //     }
-    // }
 }

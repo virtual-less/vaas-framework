@@ -23,38 +23,37 @@ export interface GetAppConfigByAppName {
 }
 
 export interface RequestConfig {
-  // readonly _id:string;
   /**
    * Get the charset when present or undefined.
    */
-   charset: string;
+   readonly charset: string;
 
    /**
     * Return parsed Content-Length when present.
     */
-   length: number;
+    readonly length: number;
 
    /**
     * Return the request mime type void of
     * parameters such as "charset".
     */
-   type: string;
+    readonly type: string;
 
     /**
      * Return request header, alias as request.header
      */
-    headers: NodeJS.Dict<string | string[]>;
+     readonly headers: NodeJS.Dict<string | string[]>;
 
 
     /**
      * Get request body.
      */
-     body?: Record<string, unknown>;
+     readonly body?: Record<string, unknown>;
     
      /**
      * Get query string.
      */
-     rawBody: string;
+      readonly rawBody: string;
 
     /**
      * Get/Set request URL.
@@ -64,12 +63,12 @@ export interface RequestConfig {
     /**
      * Get origin of URL.
      */
-    origin: string;
+     readonly origin: string;
 
     /**
      * Get full request URL.
      */
-    href: string;
+     readonly href: string;
 
     /**
      * Get/Set request method.
@@ -107,33 +106,33 @@ export interface RequestConfig {
      * and support X-Forwarded-Host when a
      * proxy is enabled.
      */
-    host: string;
+     readonly host: string;
 
     /**
      * Parse the "Host" header field hostname
      * and support X-Forwarded-Host when a
      * proxy is enabled.
      */
-    hostname: string;
+     readonly hostname: string;
 
     /**
      * Check if the request is fresh, aka
      * Last-Modified and/or the ETag
      * still match.
      */
-    fresh: boolean;
+     readonly fresh: boolean;
 
     /**
      * Check if the request is stale, aka
      * "Last-Modified" and / or the "ETag" for the
      * resource has changed.
      */
-    stale: boolean;
+     readonly stale: boolean;
 
     /**
      * Check if the request is idempotent.
      */
-    idempotent: boolean;
+     readonly idempotent: boolean;
 
     /**
      * Return the protocol string "http" or "https"
@@ -143,19 +142,19 @@ export interface RequestConfig {
      * a reverse proxy that supplies https for you this
      * may be enabled.
      */
-    protocol: string;
+     readonly protocol: string;
 
     /**
      * Short-hand for:
      *
      *    this.protocol == 'https'
      */
-    secure: boolean;
+     readonly secure: boolean;
 
     /**
      * Request remote address. Supports X-Forwarded-For when app.proxy is true.
      */
-    ip: string;
+     readonly ip: string;
 
     /**
      * When `app.proxy` is `true`, parse
@@ -165,7 +164,7 @@ export interface RequestConfig {
      * you would receive the array `["client", "proxy1", "proxy2"]`
      * where "proxy2" is the furthest down-stream.
      */
-    ips: string[];
+     readonly ips: string[];
 }
 
 export interface ResponseConfig {
@@ -181,7 +180,7 @@ export interface ResponseConfig {
     /**
      * Get response status message
      */
-    message: string;
+    readonly message: string;
 
     /**
      * Return parsed response Content-Length when present.

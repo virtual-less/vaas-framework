@@ -1,7 +1,8 @@
 import * as Koa from 'koa';
 import {ResponseConfig} from '../../types/server'
+import {HttpBase} from './httpbase'
 
-export class Response {
+export class Response extends HttpBase {
     static getResponseConfigByResponse(response:Koa.Response):ResponseConfig {
         return {
             headers: response.headers,
@@ -16,6 +17,11 @@ export class Response {
     static mergeResponseConfig2Response({
         response, responseConfig
     }:{response:Koa.Response, responseConfig:ResponseConfig}):Koa.Response {
-        return Object.assign(response,responseConfig)
+        response = HttpBase.mergeHttpObject(response,responseConfig)
+        if(responseConfig.headers && Object.keys(responseConfig.headers).length>0) {
+            // @ts-ignore 
+            response.set(responseConfig.headers)
+        }
+        return response
     }
 }
