@@ -72,7 +72,8 @@ export class VaasWorker {
             code,
             filename:appEntryPath,
             overwriteRequire:(callbackData)=>{
-                if(callbackData.modulePath[0]==='/' || callbackData.modulePath[0]==='.') {
+                if(callbackData.modulePath[0]==='/') {
+                    // node_module和相对路径处理方法，这样引用不会丢失类型判断
                     if(callbackData.modulePath.indexOf(appDirPath)<0) {
                         throw new MessageError(`file[${
                             callbackData.filename
@@ -82,7 +83,11 @@ export class VaasWorker {
                             appDirPath
                         }], use rpcInvote('app.server',{...}) to call server,please`)
                     } 
+                    if(!(/\.js$/.exec(callbackData.moduleId))) {
+                        return callbackData.nativeRequire(callbackData.modulePath)
+                    }
                 } else {
+                    // 系统模块处理方法
                     const allowModuleSet:Set<string> = workerData.allowModuleSet
                     if(allowModuleSet.has("*")) {return callbackData.nativeRequire(callbackData.modulePath)}
                     if(allowModuleSet.has(callbackData.modulePath)) {return callbackData.nativeRequire(callbackData.modulePath)}
