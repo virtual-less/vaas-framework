@@ -1,6 +1,5 @@
 import {dynamicRun} from 'vaas-core'
 import {promises as fsPromises} from 'fs'
-import * as path from 'path'
 import {parentPort, workerData} from 'worker_threads'
 
 import {VassServerConfigKey} from '../lib/decorator'
@@ -63,24 +62,21 @@ export class VaasWorker {
     }
 
     async loadServer():Promise<any> {
-        const appDirPath = path.join(workerData.appsDir,workerData.appName)
-        const appEntryPath = path.join(appDirPath,'index.js');
-        const appEntryStat = await fsPromises.stat(appEntryPath);
-        if(!appEntryStat.isFile()) {throw new MessageError(`该微服务(${workerData.appName})不存在index入口文件`)}
-        const code = (await fsPromises.readFile(appEntryPath)).toString()
+        // 关于文件的存在性，在初始化线程前判断，节约线程开支
+        const code = (await fsPromises.readFile(workerData.appEntryPath)).toString()
         const appProgram = dynamicRun({
             code,
-            filename:appEntryPath,
+            filename:workerData.appEntryPath,
             overwriteRequire:(callbackData)=>{
                 if(callbackData.modulePath[0]==='/') {
                     // node_module和相对路径处理方法，这样引用不会丢失类型判断
-                    if(callbackData.modulePath.indexOf(appDirPath)<0) {
+                    if(callbackData.modulePath.indexOf(workerData.appDirPath)<0) {
                         throw new MessageError(`file[${
                             callbackData.filename
                         }] can't require module[${
                             callbackData.modulePath
                         }] beyond appDirPath[${
-                            appDirPath
+                            workerData.appDirPath
                         }], use rpcInvote('app.server',{...}) to call server,please`)
                     } 
                     if(!(/\.js$/.exec(callbackData.moduleId))) {
@@ -96,7 +92,7 @@ export class VaasWorker {
                     }] can't require module[${
                         callbackData.modulePath
                     }] beyond appDirPath[${
-                        appDirPath
+                        workerData.appDirPath
                     }], add module[${
                         callbackData.modulePath
                     }] to allowModuleSet,please`)

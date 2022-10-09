@@ -1,6 +1,7 @@
 import {Worker, WorkerOptions} from 'worker_threads'
+import {promises as fsPromises} from 'fs'
 import * as path from 'path'
-import {WorkerMessage, ServerValue, ExecuteMessageBody, ResultMessageBody} from '../../types/server'
+import {WorkerMessage, ServerValue, ExecuteMessageBody, ResultMessageBody, ExecuteMessage} from '../../types/server'
 
 interface VaasWorkerOptions extends WorkerOptions {
     recycleTime:number
@@ -16,6 +17,7 @@ class VaasWorker extends Worker {
         super(filename, options)
         this.createAt = Date.now()
         this.updateAt = Date.now()
+        this.recycleTime = options.recycleTime
     }
 
     private getExecuteEventName(eventName:string):string {
@@ -37,26 +39,32 @@ class VaasWorker extends Worker {
         this.on('message', messageFunc)
     }
 
-    execute({serveName, executeId, params}:ExecuteMessageBody):Promise<any> {
+    execute({serveName, executeId, type, params}:ExecuteMessageBody):Promise<any> {
         this.updateAt = Date.now()
-        this.postMessage({
-            type:'execute',value:{
+        const executeMessage:ExecuteMessage =  {
+            type:'execute',
+            data:{
+                type,
                 serveName,
                 executeId,
                 params
             }
-        })
+        }
+        this.postMessage(executeMessage)
         this.doMessage();
         return new Promise<any>((resolve,reject)=>{
             let resultMessageFunc,errorMessageFunc
+            let isComplete = false
             const workerResolve = (value)=>{
                 this.removeListener(executeId, resultMessageFunc)
                 this.removeListener('error', errorMessageFunc)
+                isComplete = true;
                 return resolve(value)
             }
             const workerReject = (error)=>{
                 this.removeListener(executeId, resultMessageFunc)
                 this.removeListener('error', errorMessageFunc)
+                isComplete = true;
                 return reject(error)
             }
             resultMessageFunc = (value:ResultMessageBody)=>{
@@ -66,9 +74,12 @@ class VaasWorker extends Worker {
                 return workerReject(error)
             }
             this.once(this.getExecuteEventName(executeId), resultMessageFunc)
-            this.once(this.getExecuteEventName('error'), resultMessageFunc)
-            setTimeout(()=>{
-                return workerReject(new Error(`worker run time out[${this.recycleTime}]`))
+            this.once(this.getExecuteEventName('error'), errorMessageFunc)
+            const timeoutId = setTimeout(()=>{
+                clearTimeout(timeoutId)
+                if(!isComplete) {
+                    return workerReject(new Error(`worker run time out[${this.recycleTime}]`))
+                }
             }, this.recycleTime)
         })
     }
@@ -122,18 +133,27 @@ export class VaasWorkPool {
         },recycleTime+1)
     }
     private async getWorker({appsDir,appName,allowModuleSet,recycleTime}):Promise<VaasWorker> {
+        const appDirPath = path.join(appsDir,appName)
+        const appEntryPath = path.join(appDirPath,'index.js');
+        const FileNotExistError = new Error(`该微服务(${appName})不存在index入口文件`)
+        try {
+            const appEntryStat = await fsPromises.stat(appEntryPath);
+            if(!appEntryStat.isFile()) {throw FileNotExistError;}
+        } catch(err) {
+            throw FileNotExistError;
+        }
         const worker = new VaasWorker(path.join(__dirname,'worker.js'),{
             recycleTime,
-            workerData:{appsDir,appName,allowModuleSet}
+            workerData:{appsDir,appName,appDirPath,appEntryPath,allowModuleSet}
         })
         return await new Promise((reslove,reject)=>{
             worker.once('message', (message:WorkerMessage)=>{
                 if(message.type!=='init') {
                     worker.terminate()
                     if(message.type==='error') {
-                        throw message.data.error
+                        return reject(message.data.error)
                     } else {
-                        throw new Error(`init ${appName} worker failed`)
+                        return reject(new Error(`init ${appName} worker failed`))
                     }
                 }
                 worker.appServerConfigMap = message.data.appConfig

@@ -62,7 +62,7 @@ export function generateRouter({
                     })
                     Request.mergeRequestConfig2Request({request: ctx.request, requestConfig: outRequestConfig})
                     Response.mergeResponseConfig2Response({response: ctx.response, responseConfig: outResponseConfig})
-                    ctx.body = data
+                    return ctx.body = data
                 }
             }
         }
