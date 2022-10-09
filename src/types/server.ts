@@ -277,5 +277,5 @@ export interface InitMessage {
   data:InitMessageBody
 }
 
-
+export type WorkerMessageBody = ExecuteMessageBody|ResultMessageBody|ErrorMessageBody|InitMessageBody
 export type WorkerMessage = ExecuteMessage|ResultMessage|ErrorMessage|InitMessage

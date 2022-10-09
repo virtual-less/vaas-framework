@@ -1,7 +1,7 @@
 import {Worker, WorkerOptions} from 'worker_threads'
 import {promises as fsPromises} from 'fs'
 import * as path from 'path'
-import {WorkerMessage, ServerValue, ExecuteMessageBody, ResultMessageBody, ExecuteMessage} from '../../types/server'
+import {WorkerMessage, ServerValue, ExecuteMessageBody, ResultMessageBody, ExecuteMessage, WorkerMessageBody, ErrorMessageBody} from '../../types/server'
 
 interface VaasWorkerOptions extends WorkerOptions {
     recycleTime:number
@@ -13,6 +13,8 @@ class VaasWorker extends Worker {
     updateAt:number
     recycleTime:number
     messageStatus:'runing'| null
+    private latestExecuteId:string
+    private messageEventMap:Map<string,(message:WorkerMessage)=>void> = new Map()
     constructor(filename: string | URL, options?: VaasWorkerOptions) {
         super(filename, options)
         this.createAt = Date.now()
@@ -28,12 +30,12 @@ class VaasWorker extends Worker {
         if(this.messageStatus ==='runing'){return;}
         this.messageStatus = 'runing'
         const messageFunc = (message:WorkerMessage) => {
-            if(message.type==='result') {
-                const {executeId, result}:ResultMessageBody = message.data;
-                return this.emit(this.getExecuteEventName(executeId),{executeId, result})
-            }
-            if(message.type==='error') {
-                return this.emit(this.getExecuteEventName('error'), message.data)
+            if(message.type!=='init') {
+                const {executeId} = message.data;
+                const callback = this.messageEventMap.get(this.getExecuteEventName(executeId || this.latestExecuteId))
+                if(callback instanceof Function) {
+                    return callback(message)
+                }
             }
         }
         this.on('message', messageFunc)
@@ -50,35 +52,26 @@ class VaasWorker extends Worker {
                 params
             }
         }
+        this.latestExecuteId = executeId;
         this.postMessage(executeMessage)
         this.doMessage();
         return new Promise<any>((resolve,reject)=>{
-            let resultMessageFunc,errorMessageFunc
             let isComplete = false
-            const workerResolve = (value)=>{
-                this.removeListener(executeId, resultMessageFunc)
-                this.removeListener('error', errorMessageFunc)
+            const messageEventName = this.getExecuteEventName(executeId)
+            this.messageEventMap.set(messageEventName,(message)=>{
                 isComplete = true;
-                return resolve(value)
-            }
-            const workerReject = (error)=>{
-                this.removeListener(executeId, resultMessageFunc)
-                this.removeListener('error', errorMessageFunc)
-                isComplete = true;
-                return reject(error)
-            }
-            resultMessageFunc = (value:ResultMessageBody)=>{
-                return workerResolve(value.result)
-            }
-            errorMessageFunc = (error)=>{
-                return workerReject(error)
-            }
-            this.once(this.getExecuteEventName(executeId), resultMessageFunc)
-            this.once(this.getExecuteEventName('error'), errorMessageFunc)
+                if(message.type==='result') {
+                    return resolve(message.data.result)
+                }
+                if(message.type==='error') {
+                    return reject(message.data.error)
+                }
+            })
             const timeoutId = setTimeout(()=>{
                 clearTimeout(timeoutId)
+                this.messageEventMap.delete(messageEventName)
                 if(!isComplete) {
-                    return workerReject(new Error(`worker run time out[${this.recycleTime}]`))
+                    return reject(new Error(`worker run time out[${this.recycleTime}]`))
                 }
             }, this.recycleTime)
         })

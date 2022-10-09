@@ -5,13 +5,9 @@ import {parentPort, workerData} from 'worker_threads'
 import {VassServerConfigKey} from '../lib/decorator'
 import {WorkerMessage, ExecuteMessageBody} from '../../types/server'
 
-class MessageError extends Error {
-    executeId?:string
-}
-
 function workerPostMessage(
     value:WorkerMessage, 
-    error:MessageError=new MessageError(`${workerData.appName}'s data is not serializable`)
+    error:Error=new Error(`${workerData.appName}'s data is not serializable`)
 ) {
     try {
         parentPort.postMessage(value)
@@ -28,7 +24,7 @@ export class VaasWorker {
         const appConfig = app[VassServerConfigKey]
         workerPostMessage(
             {type:'init',data:{appConfig}},
-            new MessageError(`${workerData.appName}'s @VassServer config is not serializable`)
+            new Error(`${workerData.appName}'s @VassServer config is not serializable`)
         )
         parentPort.on('message', async (message:WorkerMessage) => {
             if(message.type !=='execute') {return} 
@@ -71,7 +67,7 @@ export class VaasWorker {
                 if(callbackData.modulePath[0]==='/') {
                     // node_module和相对路径处理方法，这样引用不会丢失类型判断
                     if(callbackData.modulePath.indexOf(workerData.appDirPath)<0) {
-                        throw new MessageError(`file[${
+                        throw new Error(`file[${
                             callbackData.filename
                         }] can't require module[${
                             callbackData.modulePath
@@ -87,7 +83,7 @@ export class VaasWorker {
                     const allowModuleSet:Set<string> = workerData.allowModuleSet
                     if(allowModuleSet.has("*")) {return callbackData.nativeRequire(callbackData.modulePath)}
                     if(allowModuleSet.has(callbackData.modulePath)) {return callbackData.nativeRequire(callbackData.modulePath)}
-                    throw new MessageError(`file[${
+                    throw new Error(`file[${
                         callbackData.filename
                     }] can't require module[${
                         callbackData.modulePath
@@ -109,20 +105,20 @@ export class VaasWorker {
 new VaasWorker().run().catch((error)=>{
     workerPostMessage(
         {type:'error', data:{error}}, 
-        new MessageError(`${workerData.appName}'s Exception is not serializable`)
+        new Error(`${workerData.appName}'s Exception is not serializable`)
         )
 })
 
 process.on('uncaughtException', (error) => {
     workerPostMessage(
         {type:'error', data:{error}}, 
-        new MessageError(`${workerData.appName}'s uncaughtException is not serializable`)
+        new Error(`${workerData.appName}'s uncaughtException is not serializable`)
         )
 })
 
 process.on('unhandledRejection', (error) => {
     workerPostMessage(
         {type:'error', data:{error}}, 
-        new MessageError(`${workerData.appName}'s unhandledRejection is not serializable`)
+        new Error(`${workerData.appName}'s unhandledRejection is not serializable`)
     )
 })
