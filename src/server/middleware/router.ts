@@ -19,11 +19,14 @@ export function generateRouter({
 }) {
     
     return async function (ctx:Context) {
+        let urlPath = ctx.path
         let appName = getAppNameByHost(ctx.hostname)
         if(!appName) {
-            const matchApp = ctx.path.match(/^\/(\w+)(\/\w+)?$/)
-            if(!matchApp) {throw new Error(`不支持该路径(${ctx.path})传入`)}
-            appName = matchApp[1]
+            const matchApp = urlPath.match(/^\/((\w+)\/\w+|(\w+)\/?$)/)
+            if(!matchApp) {throw new Error(`不支持该路径(${urlPath})传入`)}
+            appName = matchApp[2] || matchApp[3]
+        } else {
+            urlPath=urlPath[0]==='/'?`/${appName}${urlPath}`:`/${appName}/${urlPath}`
         }
         const appConfig = getAppConfigByAppName(appName)
         const vaasWorker = await vaasWorkPool.getWokerByAppName({
@@ -44,7 +47,7 @@ export function generateRouter({
                 routerString+=`/${serveName}`
             }
             const matchPath = getMatchUrlFunc(routerString)
-            const matchPathRes = matchPath(ctx.path)
+            const matchPathRes = matchPath(urlPath)
             if(matchPathRes) {
                 const rightMethod = (!serveValue.method) || (ctx.method.toLowerCase() === serveValue.method.toLowerCase())
                 if(rightMethod) {
@@ -66,6 +69,6 @@ export function generateRouter({
                 }
             }
         }
-        throw new Error(`this App(${appName}) not path has matched[${ctx.path}]`)
+        throw new Error(`this App(${appName}) not path has matched[${urlPath}]`)
     }
 }
