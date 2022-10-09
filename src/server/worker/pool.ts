@@ -121,10 +121,10 @@ export class VaasWorkPool {
             clearTimeout(recycleTimeId)
         },recycleTime+1)
     }
-    private async getWorker({appsDir,appName,recycleTime}):Promise<VaasWorker> {
+    private async getWorker({appsDir,appName,allowModuleSet,recycleTime}):Promise<VaasWorker> {
         const worker = new VaasWorker(path.join(__dirname,'worker.js'),{
             recycleTime,
-            workerData:{appsDir,appName}
+            workerData:{appsDir,appName,allowModuleSet}
         })
         return await new Promise((reslove,reject)=>{
             worker.once('message', (message:WorkerMessage)=>{
@@ -152,17 +152,17 @@ export class VaasWorkPool {
         })
     }
 
-    async getWokerByAppName({appsDir,appName,maxWorkerNum,recycleTime}):Promise<VaasWorker> {
+    async getWokerByAppName({appsDir,appName,maxWorkerNum,allowModuleSet,recycleTime}):Promise<VaasWorker> {
         if(this.pool.has(appName)) {
             const vaasWorkerSet = this.pool.get(appName)
             if(vaasWorkerSet.size<maxWorkerNum){
-                const vaasWorker = await this.getWorker({appsDir,appName,recycleTime})
+                const vaasWorker = await this.getWorker({appsDir,appName,allowModuleSet,recycleTime})
                 vaasWorkerSet.add(vaasWorker)
                 this.recycle({vaasWorker, vaasWorkerSet, appName, recycleTime})
             }
             return vaasWorkerSet.next()
         }
-        const vaasWorker = await this.getWorker({appsDir,appName,recycleTime})
+        const vaasWorker = await this.getWorker({appsDir,appName,allowModuleSet,recycleTime})
         const vaasWorkerSet = new VaasWorkerSet([vaasWorker])
         this.recycle({vaasWorker, vaasWorkerSet, appName, recycleTime})
         this.pool.set(appName,vaasWorkerSet)

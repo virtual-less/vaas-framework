@@ -29,6 +29,7 @@ export function generateRouter({
         const vaasWorker = await vaasWorkPool.getWokerByAppName({
             appsDir,appName,
             maxWorkerNum:appConfig.maxWorkerNum, 
+            allowModuleSet:appConfig.allowModuleSet,
             recycleTime:appConfig.timeout
         })
         for (const [serveName,serveValue] of vaasWorker.appServerConfigMap) {

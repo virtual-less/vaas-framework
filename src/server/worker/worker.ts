@@ -72,15 +72,31 @@ export class VaasWorker {
             code,
             filename:appEntryPath,
             overwriteRequire:(callbackData)=>{
-                if(callbackData.modulePath.indexOf(appDirPath)<0) {
+                if(callbackData.modulePath[0]==='/' || callbackData.modulePath[0]==='.') {
+                    if(callbackData.modulePath.indexOf(appDirPath)<0) {
+                        throw new MessageError(`file[${
+                            callbackData.filename
+                        }] can't require module[${
+                            callbackData.modulePath
+                        }] beyond appDirPath[${
+                            appDirPath
+                        }], use rpcInvote('app.server',{...}) to call server,please`)
+                    } 
+                } else {
+                    const allowModuleSet:Set<string> = workerData.allowModuleSet
+                    if(allowModuleSet.has("*")) {return callbackData.nativeRequire(callbackData.modulePath)}
+                    if(allowModuleSet.has(callbackData.modulePath)) {return callbackData.nativeRequire(callbackData.modulePath)}
                     throw new MessageError(`file[${
                         callbackData.filename
                     }] can't require module[${
                         callbackData.modulePath
                     }] beyond appDirPath[${
                         appDirPath
-                    }], use rpcInvote('app.server',{...}) to call server,please`)
-                } 
+                    }], add module[${
+                        callbackData.modulePath
+                    }] to allowModuleSet,please`)
+                }
+                
             }
         })
         return appProgram.default

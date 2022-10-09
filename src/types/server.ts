@@ -10,6 +10,7 @@ export interface ServerValue {
 
 export interface AppConfig {
   maxWorkerNum:number,
+  allowModuleSet:Set<string>,
   timeout:number,
 }
 
