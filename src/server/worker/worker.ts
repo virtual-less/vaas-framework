@@ -3,7 +3,7 @@ import {promises as fsPromises} from 'fs'
 import * as path from 'path'
 import {parentPort, workerData} from 'worker_threads'
 
-import {VassServerSymbol} from '../lib/decorator'
+import {VassServerConfigKey} from '../lib/decorator'
 import {WorkerMessage, ExecuteMessageBody} from '../../types/server'
 
 class MessageError extends Error {
@@ -26,7 +26,7 @@ export class VaasWorker {
     async run() {
         const appClass = await this.loadServer()
         const app = new appClass()
-        const appConfig = app[VassServerSymbol]
+        const appConfig = app[VassServerConfigKey]
         workerPostMessage(
             {type:'init',data:{appConfig}},
             new MessageError(`${workerData.appName}'s @VassServer config is not serializable`)
