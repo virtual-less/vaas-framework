@@ -1,6 +1,6 @@
 {
   "name": "vaas-framework",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Virtual as a Service Framework",
   "main": "./build/index.js",
   "bin": {
@@ -36,7 +36,7 @@
     "koa-bodyparser": "^4.3.0",
     "path-to-regexp": "^6.2.1",
     "uuid": "^9.0.0",
-    "vaas-core": "^1.0.6"
+    "vaas-core": "^1.0.9"
   },
   "devDependencies": {
     "mocha": "^10.0.0",
