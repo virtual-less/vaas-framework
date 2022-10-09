@@ -96,7 +96,7 @@ class VaasWorkerSet extends Set<VaasWorker> {
         const nextValue = this.workerIterator.next()
         if(nextValue.done) {
             this.workerIterator = this.values()
-            this.workerIterator.next().value;
+            return this.workerIterator.next().value;
         }
         return nextValue.value;
     }

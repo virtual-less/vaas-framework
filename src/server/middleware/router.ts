@@ -21,7 +21,7 @@ export function generateRouter({
     return async function (ctx:Context) {
         let appName = getAppNameByHost(ctx.hostname)
         if(!appName) {
-            const matchApp = ctx.path.match(/^\/(\w+)\/?/)
+            const matchApp = ctx.path.match(/^\/(\w+)(\/\w+)?$/)
             if(!matchApp) {throw new Error(`不支持该路径(${ctx.path})传入`)}
             appName = matchApp[1]
         }
