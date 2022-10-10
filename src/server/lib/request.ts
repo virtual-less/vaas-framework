@@ -34,6 +34,9 @@ export class Request extends HttpBase {
     static mergeRequestConfig2Request({
         request, requestConfig
     }:{request:Koa.Request, requestConfig:RequestConfig}):Koa.Request {
-        return HttpBase.mergeHttpObject(request, requestConfig)
+        return HttpBase.mergeHttpObject(
+            request, requestConfig,
+            ['url','method','path','query','querystring','search']
+        )
     }
 }

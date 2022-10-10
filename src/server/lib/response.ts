@@ -17,7 +17,10 @@ export class Response extends HttpBase {
     static mergeResponseConfig2Response({
         response, responseConfig
     }:{response:Koa.Response, responseConfig:ResponseConfig}):Koa.Response {
-        response = HttpBase.mergeHttpObject(response,responseConfig)
+        response = HttpBase.mergeHttpObject(
+            response,responseConfig,
+            ['status','length','type','lastModified','etag']
+        )
         if(responseConfig.headers && Object.keys(responseConfig.headers).length>0) {
             // @ts-ignore 
             response.set(responseConfig.headers)
