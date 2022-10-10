@@ -1,6 +1,6 @@
 {
   "name": "vaas-framework",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Virtual as a Service Framework",
   "main": "./build/index.js",
   "bin": {
