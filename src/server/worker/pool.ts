@@ -38,6 +38,12 @@ class VaasWorker extends Worker {
                     appName:executeMessageBody.appName,
                 })
                 try {
+                    const serverValue = vaasWorker.appServerConfigMap.get(executeMessageBody.serveName)
+                    if(serverValue.type!==executeMessageBody.type) {
+                        throw new Error(`appName[${executeMessageBody.appName}]'s serveName[${
+                            executeMessageBody.serveName
+                        }] not matched type[${executeMessageBody.type}]`)
+                    }
                     const result = await vaasWorker.execute(executeMessageBody)
                     const resultMessage:ResultMessage = {
                         type:'result',
