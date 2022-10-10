@@ -9,18 +9,16 @@ import { Request } from '../lib/request'
 import { Response } from '../lib/response'
 
 export function generateRouter({
-    appsDir,vaasWorkPool,
+    vaasWorkPool,
     getAppNameByHost,
-    getAppConfigByAppName
 }:{
-    appsDir:string, vaasWorkPool:VaasWorkPool,
+    vaasWorkPool:VaasWorkPool,
     getAppNameByHost:GetAppNameByHost,
-    getAppConfigByAppName:GetAppConfigByAppName
 }) {
     
     return async function (ctx:Context) {
         let urlPath = ctx.path
-        let appName = getAppNameByHost(ctx.hostname)
+        let appName = await getAppNameByHost(ctx.hostname)
         if(!appName) {
             const matchApp = urlPath.match(/^\/((\w+)\/\w+|(\w+)\/?$)/)
             if(!matchApp) {throw new Error(`不支持该路径(${urlPath})传入`)}
@@ -28,12 +26,9 @@ export function generateRouter({
         } else {
             urlPath=urlPath[0]==='/'?`/${appName}${urlPath}`:`/${appName}/${urlPath}`
         }
-        const appConfig = getAppConfigByAppName(appName)
+        
         const vaasWorker = await vaasWorkPool.getWokerByAppName({
-            appsDir,appName,
-            maxWorkerNum:appConfig.maxWorkerNum, 
-            allowModuleSet:appConfig.allowModuleSet,
-            recycleTime:appConfig.timeout
+            appName,
         })
         for (const [serveName,serveValue] of vaasWorker.appServerConfigMap) {
             const httpType = 'http';
@@ -54,6 +49,7 @@ export function generateRouter({
                     const intoRequestConfig = Request.getRequestConfigByRequest(ctx.request)
                     const intoResponseConfig = Response.getResponseConfigByResponse(ctx.response)
                     const {outRequestConfig, outResponseConfig, data} = await vaasWorker.execute({
+                        appName,
                         serveName,
                         executeId:uuidv4(),
                         type:httpType,

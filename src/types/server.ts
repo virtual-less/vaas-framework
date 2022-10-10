@@ -15,11 +15,11 @@ export interface AppConfig {
 }
 
 export interface GetAppNameByHost {
-  (hostname:string): string;
+  (hostname:string): Promise<string>;
 }
 
 export interface GetAppConfigByAppName {
-  (appName:string): AppConfig;
+  (appName:string): Promise<AppConfig>;
 }
 
 export interface RequestConfig {
@@ -235,6 +235,7 @@ export interface HttpParams {
 
 export type  WorkerMessageType = 'init' | 'error' | 'execute' | 'result'
 export interface ExecuteMessageBody {
+    appName:string, 
     serveName:string, 
     executeId:string,
     type:ServerType,
@@ -248,6 +249,7 @@ export interface ExecuteMessage {
 
 export interface ResultMessageBody {
   executeId:string,
+  type:ServerType,
   result:{
     data:any,
     [key:string]:any

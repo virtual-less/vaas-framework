@@ -20,7 +20,10 @@ export class VaasServer {
         getAppConfigByAppName:GetAppConfigByAppName,
         showErrorStack:boolean
     }):Promise<Koa> {
-        const vaasWorkPool = new VaasWorkPool()
+        const vaasWorkPool = new VaasWorkPool({
+            appsDir,
+            getAppConfigByAppName
+        })
         const app = new Koa();
         app.use(outputCatch({showErrorStack}))
         app.use(KoaBodyparser({
@@ -30,7 +33,7 @@ export class VaasServer {
             xmlLimit:'30mb',
         }))
         app.use(generateRouter({
-            appsDir, vaasWorkPool,getAppNameByHost, getAppConfigByAppName
+            vaasWorkPool,getAppNameByHost,
         }))
         return new Promise((resolve)=>{
             this.server = app.listen(port,()=>{

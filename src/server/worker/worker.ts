@@ -1,20 +1,16 @@
-import {dynamicRun} from 'vaas-core'
+import {dynamicRun, proxyData} from 'vaas-core'
 import {promises as fsPromises} from 'fs'
 import {parentPort, workerData} from 'worker_threads'
 
+
 import {VassServerConfigKey} from '../lib/decorator'
+import {workerPostMessage, getSerializableErrorByAppName} from '../lib/rpc'
 import {WorkerMessage, ExecuteMessageBody} from '../../types/server'
 
-function workerPostMessage(
-    value:WorkerMessage, 
-    error:Error=new Error(`${workerData.appName}'s data is not serializable`)
-) {
-    try {
-        parentPort.postMessage(value)
-    } catch {
-        parentPort.postMessage({type:'error',value:error})
-    }
-}
+const packageInfo = require('../../../package.json')
+
+
+const notSerializableError = getSerializableErrorByAppName(workerData.appName)
 
 export class VaasWorker {
 
@@ -33,26 +29,38 @@ export class VaasWorker {
                 const data = await app[executeMessage.serveName](executeMessage.params)
                 if(executeMessage.type==='http') {
                     workerPostMessage(
-                        {type:'result',data:{
-                        result:{
-                            outRequestConfig:executeMessage.params.req, 
-                            outResponseConfig:executeMessage.params.res, 
-                            data
-                        },executeId:executeMessage.executeId}}
-                    )
+                        {
+                            type:'result',
+                            data:{
+                            result:{
+                                outRequestConfig:executeMessage.params.req, 
+                                outResponseConfig:executeMessage.params.res, 
+                                data
+                            },
+                            type:executeMessage.type,
+                            executeId:executeMessage.executeId
+                            }
+                        }
+                    ,notSerializableError)
                 } else {
                     workerPostMessage(
-                        {type:'result',data:{
-                        result:{
-                            data
-                        },executeId:executeMessage.executeId}}
-                    )
+                        {
+                            type:'result',
+                            data:{
+                                result:{
+                                    data
+                                },
+                                type:executeMessage.type,
+                                executeId:executeMessage.executeId
+                            }
+                        }
+                    ,notSerializableError)
                 }
                 
             } catch(error) {
                 workerPostMessage(
                     {type:'error',data:{error,executeId:executeMessage.executeId}}
-                )
+                ,notSerializableError)
             }
         })
     }
@@ -63,7 +71,13 @@ export class VaasWorker {
         const appProgram = dynamicRun({
             code,
             filename:workerData.appEntryPath,
+            extendVer:{
+                process:proxyData(process)
+            },
             overwriteRequire:(callbackData)=>{
+                if(packageInfo.name === callbackData.moduleId) {
+                    return callbackData.nativeRequire(callbackData.moduleId)
+                }
                 if(callbackData.modulePath[0]==='/') {
                     // node_module和相对路径处理方法，这样引用不会丢失类型判断
                     if(callbackData.modulePath.indexOf(workerData.appDirPath)<0) {
@@ -73,7 +87,7 @@ export class VaasWorker {
                             callbackData.modulePath
                         }] beyond appDirPath[${
                             workerData.appDirPath
-                        }], use rpcInvote('app.server',{...}) to call server,please`)
+                        }], use ${packageInfo.name}.rpcInvote('app.server',{...}) to call server,please`)
                     } 
                     if(!(/\.js$/.exec(callbackData.moduleId))) {
                         return callbackData.nativeRequire(callbackData.modulePath)

@@ -1,7 +1,7 @@
 import {Worker, WorkerOptions} from 'worker_threads'
 import {promises as fsPromises} from 'fs'
 import * as path from 'path'
-import {WorkerMessage, ServerValue, ExecuteMessageBody, ResultMessageBody, ExecuteMessage, WorkerMessageBody, ErrorMessageBody} from '../../types/server'
+import {WorkerMessage, ServerValue, ExecuteMessageBody, ExecuteMessage, GetAppConfigByAppName, ResultMessage, ErrorMessage} from '../../types/server'
 
 interface VaasWorkerOptions extends WorkerOptions {
     recycleTime:number
@@ -29,8 +29,36 @@ class VaasWorker extends Worker {
     private doMessage() {
         if(this.messageStatus ==='runing'){return;}
         this.messageStatus = 'runing'
-        const messageFunc = (message:WorkerMessage) => {
-            if(message.type!=='init') {
+        const messageFunc = async (message:WorkerMessage) => {
+            if(message.type==='init') {return;}
+            if(message.type==='execute') {
+                const executeMessageBody = message.data;
+                const vaasWorkPool = VaasWorkPool.instance;
+                const vaasWorker = await vaasWorkPool.getWokerByAppName({
+                    appName:executeMessageBody.appName,
+                })
+                try {
+                    const result = await vaasWorker.execute(executeMessageBody)
+                    const resultMessage:ResultMessage = {
+                        type:'result',
+                        data:{
+                            executeId:executeMessageBody.executeId,
+                            type:executeMessageBody.type,
+                            result
+                        }
+                    }
+                    this.postMessage(resultMessage)
+                } catch(error) {
+                    const errorMessage:ErrorMessage = {
+                        type:'error',
+                        data:{
+                            executeId:executeMessageBody.executeId,
+                            error
+                        }
+                    }
+                    this.postMessage(errorMessage)
+                }
+            } else {
                 const {executeId} = message.data;
                 const callback = this.messageEventMap.get(this.getExecuteEventName(executeId || this.latestExecuteId))
                 if(callback instanceof Function) {
@@ -41,12 +69,13 @@ class VaasWorker extends Worker {
         this.on('message', messageFunc)
     }
 
-    execute({serveName, executeId, type, params}:ExecuteMessageBody):Promise<any> {
+    execute({appName,serveName, executeId, type, params}:ExecuteMessageBody):Promise<any> {
         this.updateAt = Date.now()
         const executeMessage:ExecuteMessage =  {
             type:'execute',
             data:{
                 type,
+                appName,
                 serveName,
                 executeId,
                 params
@@ -98,12 +127,22 @@ class VaasWorkerSet extends Set<VaasWorker> {
 export class VaasWorkPool {
     pool:Map<string,VaasWorkerSet> = new Map<string,VaasWorkerSet>()
     workerRecycleCheckTime:number;
+    appsDir:string
+    getAppConfigByAppName:GetAppConfigByAppName
     static instance:VaasWorkPool = null
-    constructor() {
+    constructor({
+        appsDir,
+        getAppConfigByAppName
+    }:{
+        appsDir:string,
+        getAppConfigByAppName:GetAppConfigByAppName
+    }) {
         if(VaasWorkPool.instance) {
             return VaasWorkPool.instance
         }
         VaasWorkPool.instance = this;
+        this.getAppConfigByAppName = getAppConfigByAppName
+        this.appsDir = appsDir
     }
 
     private recycle({vaasWorker, vaasWorkerSet, appName, recycleTime}:{
@@ -165,7 +204,12 @@ export class VaasWorkPool {
         })
     }
 
-    async getWokerByAppName({appsDir,appName,maxWorkerNum,allowModuleSet,recycleTime}):Promise<VaasWorker> {
+    async getWokerByAppName({appName}):Promise<VaasWorker> {
+        const appsDir = this.appsDir;
+        const appConfig = await this.getAppConfigByAppName(appName)
+        const maxWorkerNum=appConfig.maxWorkerNum
+        const allowModuleSet=appConfig.allowModuleSet
+        const recycleTime=appConfig.timeout
         if(this.pool.has(appName)) {
             const vaasWorkerSet = this.pool.get(appName)
             if(vaasWorkerSet.size<maxWorkerNum){
