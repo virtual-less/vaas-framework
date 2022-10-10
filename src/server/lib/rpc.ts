@@ -24,7 +24,8 @@ function getRpcEventName(eventName:string):string {
 
 const rpcEventMap:Map<string,(message:WorkerMessage)=>void> = new Map()
 let startRpc = false;
-export async function rpcInvote(appServerName:string,params:any):Promise<any> {
+
+export async function rpcInvote<P,R>(appServerName:string,params:P):Promise<R> {
     if(!startRpc) {
         parentPort.on('message', async (message:WorkerMessage) => {
             if(message.type ==='result' || message.type ==='error') {
@@ -57,7 +58,8 @@ export async function rpcInvote(appServerName:string,params:any):Promise<any> {
     return new Promise((resolve,reject)=>{
         rpcEventMap.set(getRpcEventName(executeId),(message:ResultMessage|ErrorMessage)=>{
             if(message.type==='result') {
-                return resolve(message.data.result)
+                // @ts-ignore
+                return resolve(message.data.result.data)
             }
             if(message.type==='error') {
                 return reject(message.data.error)
