@@ -1,5 +1,6 @@
 import {Worker, WorkerOptions} from 'worker_threads'
 import {promises as fsPromises} from 'fs'
+import {Buffer} from 'buffer'
 import * as path from 'path'
 import {WorkerMessage, ServerValue, ExecuteMessageBody, ExecuteMessage, GetAppConfigByAppName, ResultMessage, ErrorMessage} from '../../types/server'
 
@@ -96,6 +97,10 @@ class VaasWorker extends Worker {
             this.messageEventMap.set(messageEventName,(message)=>{
                 isComplete = true;
                 if(message.type==='result') {
+                    // 兼容低版本node的buffer未转化问题
+                    if(message.data.result.data instanceof Uint8Array) {
+                        message.data.result.data = Buffer.from(message.data.result.data)
+                    }
                     return resolve(message.data.result)
                 }
                 if(message.type==='error') {
