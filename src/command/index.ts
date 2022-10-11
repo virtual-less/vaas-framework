@@ -29,14 +29,7 @@ program
                 defaultAppDir = path.join(process.cwd(),tsOutDir,'apps')
             }
         } catch(error) {}
-        let vaasConfig = {}
-        try {
-            vaasConfig = require(options.configPath || defaultConfigPath)
-        } catch(error) {
-            if(options.configPath) {
-                throw new Error(`vass config path is not exist![${options.configPath}]`)
-            }
-        }
+        const vaasConfig = require(options.configPath || defaultConfigPath)
         const finalyConfig = Object.assign({
             appsDir:defaultAppDir, 
             port:8080, 
