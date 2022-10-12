@@ -5,13 +5,13 @@ import {HttpBase} from './httpbase'
 export class Response extends HttpBase {
     static getResponseConfigByResponse(response:Koa.Response):ResponseConfig {
         return {
-            headers: response.headers,
-            status: response.status,
-            message: response.message,
-            length: response.length,
-            type: response.type,
-            lastModified: response.lastModified,
-            etag: response.etag,
+            headers: {},
+            status: 200,
+            message: undefined,
+            length: undefined,
+            type: undefined,
+            lastModified: undefined,
+            etag: undefined,
         }
     }
     static mergeResponseConfig2Response({
