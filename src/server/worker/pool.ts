@@ -175,7 +175,7 @@ export class VaasWorkPool {
             clearTimeout(recycleTimeId)
         },recycleTime+1)
     }
-    private async getWorker({appsDir,appName,allowModuleSet,recycleTime}):Promise<VaasWorker> {
+    private async getWorker({appsDir,appName,allowModuleSet,recycleTime,resourceLimits}):Promise<VaasWorker> {
         const appDirPath = path.join(appsDir,appName)
         const appEntryPath = path.join(appDirPath,'index.js');
         const FileNotExistError = new Error(`该微服务(${appName})不存在index入口文件`)
@@ -186,6 +186,7 @@ export class VaasWorkPool {
             throw FileNotExistError;
         }
         const worker = new VaasWorker(path.join(__dirname,'worker.js'),{
+            resourceLimits,
             recycleTime,
             workerData:{appsDir,appName,appDirPath,appEntryPath,allowModuleSet}
         })
@@ -221,16 +222,17 @@ export class VaasWorkPool {
         const maxWorkerNum=appConfig.maxWorkerNum
         const allowModuleSet=appConfig.allowModuleSet
         const recycleTime=appConfig.timeout
+        const resourceLimits=appConfig.resourceLimits
         if(this.pool.has(appName)) {
             const vaasWorkerSet = this.pool.get(appName)
             if(vaasWorkerSet.size<maxWorkerNum){
-                const vaasWorker = await this.getWorker({appsDir,appName,allowModuleSet,recycleTime})
+                const vaasWorker = await this.getWorker({appsDir,appName,allowModuleSet,resourceLimits,recycleTime})
                 vaasWorkerSet.add(vaasWorker)
                 this.recycle({vaasWorker, vaasWorkerSet, appName, recycleTime})
             }
             return vaasWorkerSet.next()
         }
-        const vaasWorker = await this.getWorker({appsDir,appName,allowModuleSet,recycleTime})
+        const vaasWorker = await this.getWorker({appsDir,appName,allowModuleSet,resourceLimits,recycleTime})
         const vaasWorkerSet = new VaasWorkerSet([vaasWorker])
         this.recycle({vaasWorker, vaasWorkerSet, appName, recycleTime})
         this.pool.set(appName,vaasWorkerSet)

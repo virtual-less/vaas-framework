@@ -1,18 +1,20 @@
 import { OutgoingHttpHeader } from "http";
+import { ResourceLimits } from "worker_threads";
 import * as Koa from 'koa';
 
 export type ServerType = 'http'| 'rpc'
 
 export interface ServerValue {
-    type:ServerType,
-    method?: 'get' | 'post' | 'put' | 'delete' | 'patch'| 'options';
-    routerName?: string;
-  }
+  type:ServerType,
+  method?: 'get' | 'post' | 'put' | 'delete' | 'patch'| 'options';
+  routerName?: string;
+}
 
 export interface AppConfig {
   maxWorkerNum:number,
   allowModuleSet:Set<string>,
   timeout:number,
+  resourceLimits?:ResourceLimits
 }
 
 export interface GetAppNameByRequest {
@@ -21,6 +23,14 @@ export interface GetAppNameByRequest {
 
 export interface GetAppConfigByAppName {
   (appName:string): Promise<AppConfig>;
+}
+
+export interface VaasConfig {
+  appsDir:string,
+  port:number,
+  getAppNameByRequest:GetAppNameByRequest, 
+  getAppConfigByAppName:GetAppConfigByAppName,
+  showErrorStack:boolean
 }
 
 export interface RequestConfig {

@@ -5,7 +5,7 @@ import * as KoaBodyparser  from 'koa-bodyparser'
 import {outputCatch}  from './middleware/outputCatch'
 import {generateRouter}  from './middleware/router'
 import {VaasWorkPool} from './worker/pool'
-import {GetAppNameByRequest, GetAppConfigByAppName} from '../types/server'
+import {VaasConfig} from '../types/server'
 
 
 
@@ -14,12 +14,7 @@ export class VaasServer {
     run({
         appsDir, port, 
         getAppNameByRequest, getAppConfigByAppName, showErrorStack
-    }:{
-        appsDir:string,port:number,
-        getAppNameByRequest:GetAppNameByRequest, 
-        getAppConfigByAppName:GetAppConfigByAppName,
-        showErrorStack:boolean
-    }):Promise<Koa> {
+    }:VaasConfig):Promise<Koa> {
         const vaasWorkPool = new VaasWorkPool({
             appsDir,
             getAppConfigByAppName
