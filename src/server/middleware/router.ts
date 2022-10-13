@@ -44,9 +44,13 @@ export function generateRouter({
             const matchPath = getMatchUrlFunc(routerString)
             const matchPathRes = matchPath(urlPath)
             if(matchPathRes) {
+                ctx.request
                 const rightMethod = (!serveValue.method) || (ctx.method.toLowerCase() === serveValue.method.toLowerCase())
                 if(rightMethod) {
+                    // @ts-ignore 
+                    const params:NodeJS.Dict<string | string[]> = matchPathRes.params
                     const intoRequestConfig = Request.getRequestConfigByRequest(ctx.request)
+                    intoRequestConfig.params = params
                     const intoResponseConfig = Response.getResponseConfigByResponse(ctx.response)
                     const {outRequestConfig, outResponseConfig, data} = await vaasWorker.execute({
                         appName,

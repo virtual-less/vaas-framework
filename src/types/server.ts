@@ -83,6 +83,12 @@ export interface RequestConfig {
     path: string;
 
     /**
+     * Get parsed routerName-params.
+     * Set routerName-params as an object.
+     */
+     params: NodeJS.Dict<string | string[]>;
+
+    /**
      * Get parsed query-string.
      * Set query-string as an object.
      */

@@ -17,6 +17,7 @@ export class Request extends HttpBase {
             href: request.href,
             method: request.method,
             path: request.path,
+            params:{},
             query: request.query,
             querystring: request.querystring,
             search: request.search,
