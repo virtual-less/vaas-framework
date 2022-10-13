@@ -1,4 +1,5 @@
 import { OutgoingHttpHeader } from "http";
+import * as Koa from 'koa';
 
 export type ServerType = 'http'| 'rpc'
 
@@ -14,8 +15,8 @@ export interface AppConfig {
   timeout:number,
 }
 
-export interface GetAppNameByHost {
-  (hostname:string): Promise<string>;
+export interface GetAppNameByRequest {
+  (request:Koa.Request): Promise<string>;
 }
 
 export interface GetAppConfigByAppName {

@@ -4,21 +4,21 @@ import { v4 as uuidv4 } from 'uuid'
 
 
 import {VaasWorkPool} from '../worker/pool'
-import {GetAppNameByHost, GetAppConfigByAppName} from '../../types/server'
+import {GetAppNameByRequest} from '../../types/server'
 import { Request } from '../lib/request'
 import { Response } from '../lib/response'
 
 export function generateRouter({
     vaasWorkPool,
-    getAppNameByHost,
+    getAppNameByRequest,
 }:{
     vaasWorkPool:VaasWorkPool,
-    getAppNameByHost:GetAppNameByHost,
+    getAppNameByRequest:GetAppNameByRequest,
 }) {
     
     return async function (ctx:Context) {
         let urlPath = ctx.path
-        let appName = await getAppNameByHost(ctx.hostname)
+        let appName = await getAppNameByRequest(ctx.request)
         if(!appName) {
             const matchApp = urlPath.match(/^\/((\w+)\/\w+|(\w+)\/?$)/)
             if(!matchApp) {throw new Error(`不支持该路径(${urlPath})传入`)}

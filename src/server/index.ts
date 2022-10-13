@@ -5,7 +5,7 @@ import * as KoaBodyparser  from 'koa-bodyparser'
 import {outputCatch}  from './middleware/outputCatch'
 import {generateRouter}  from './middleware/router'
 import {VaasWorkPool} from './worker/pool'
-import {GetAppNameByHost, GetAppConfigByAppName} from '../types/server'
+import {GetAppNameByRequest, GetAppConfigByAppName} from '../types/server'
 
 
 
@@ -13,10 +13,10 @@ export class VaasServer {
     server:HttpServer
     run({
         appsDir, port, 
-        getAppNameByHost, getAppConfigByAppName, showErrorStack
+        getAppNameByRequest, getAppConfigByAppName, showErrorStack
     }:{
         appsDir:string,port:number,
-        getAppNameByHost:GetAppNameByHost, 
+        getAppNameByRequest:GetAppNameByRequest, 
         getAppConfigByAppName:GetAppConfigByAppName,
         showErrorStack:boolean
     }):Promise<Koa> {
@@ -33,7 +33,7 @@ export class VaasServer {
             xmlLimit:'30mb',
         }))
         app.use(generateRouter({
-            vaasWorkPool,getAppNameByHost,
+            vaasWorkPool,getAppNameByRequest,
         }))
         return new Promise((resolve)=>{
             this.server = app.listen(port,()=>{

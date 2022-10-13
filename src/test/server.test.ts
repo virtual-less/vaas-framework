@@ -8,7 +8,7 @@ import {describe, it} from 'mocha';
 // server.run({
 //   appsDir:path.join(__dirname,'apps'), 
 //   port:8080, 
-//   getAppNameByHost:(host)=>{
+//   getAppNameByRequest:(request)=>{
 //     return ''
 //   }, 
 //   getAppConfigByAppName:(appName)=>{

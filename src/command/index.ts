@@ -33,7 +33,7 @@ program
         const finalyConfig = Object.assign({
             appsDir:defaultAppDir, 
             port:8080, 
-            getAppNameByHost:async (_host)=>{
+            getAppNameByRequest:async (_request)=>{
                 return ''
             }, 
             getAppConfigByAppName:async(_appName)=>{
