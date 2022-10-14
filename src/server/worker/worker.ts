@@ -1,5 +1,4 @@
 import {dynamicRun, proxyData} from 'vaas-core'
-import {promises as fsPromises} from 'fs'
 import {parentPort, workerData} from 'worker_threads'
 
 
@@ -67,10 +66,8 @@ export class VaasWorker {
 
     async loadServer():Promise<any> {
         // 关于文件的存在性，在初始化线程前判断，节约线程开支
-        const code = (await fsPromises.readFile(workerData.appEntryPath)).toString()
         const appProgram = dynamicRun({
-            code,
-            filename:workerData.appEntryPath,
+            filepath:workerData.appEntryPath,
             extendVer:{
                 process:proxyData(process)
             },
@@ -82,7 +79,7 @@ export class VaasWorker {
                     // node_module和相对路径处理方法，这样引用不会丢失类型判断
                     if(callbackData.modulePath.indexOf(workerData.appDirPath)<0) {
                         throw new Error(`file[${
-                            callbackData.filename
+                            callbackData.filepath
                         }] can't require module[${
                             callbackData.modulePath
                         }] beyond appDirPath[${
@@ -98,7 +95,7 @@ export class VaasWorker {
                     if(allowModuleSet.has("*")) {return callbackData.nativeRequire(callbackData.modulePath)}
                     if(allowModuleSet.has(callbackData.modulePath)) {return callbackData.nativeRequire(callbackData.modulePath)}
                     throw new Error(`file[${
-                        callbackData.filename
+                        callbackData.filepath
                     }] can't require module[${
                         callbackData.modulePath
                     }] beyond appDirPath[${
