@@ -7,7 +7,7 @@ export type ServerType = 'http'| 'rpc'
 export interface ServerValue {
   type:ServerType,
   method?: 'get' | 'post' | 'put' | 'delete' | 'patch'| 'options';
-  routerName?: string;
+  routerName?: string | RegExp;
 }
 
 export interface AppConfig {

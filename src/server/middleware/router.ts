@@ -35,20 +35,25 @@ export function generateRouter({
             if([httpType].indexOf(serveValue.type)===-1) {
                 continue
             }
-            let routerString = `/${appName}`
-            if(serveValue.routerName) {
-                routerString+=serveValue.routerName
+            let matchPathRes;
+            if(serveValue.routerName instanceof RegExp) {
+                matchPathRes = serveValue.routerName.exec(urlPath.replace(`/${appName}`,''))
             } else {
-                routerString+=`/${serveName}`
+                let routerString = `/${appName}`
+                if(serveValue.routerName) {
+                    routerString+=serveValue.routerName
+                } else {
+                    routerString+=`/${serveName}`
+                }
+                const matchPath = getMatchUrlFunc(routerString)
+                matchPathRes = matchPath(urlPath)
             }
-            const matchPath = getMatchUrlFunc(routerString)
-            const matchPathRes = matchPath(urlPath)
             if(matchPathRes) {
                 ctx.request
                 const rightMethod = (!serveValue.method) || (ctx.method.toLowerCase() === serveValue.method.toLowerCase())
                 if(rightMethod) {
                     // @ts-ignore 
-                    const params:NodeJS.Dict<string | string[]> = matchPathRes.params
+                    const params:NodeJS.Dict<string | string[]> = matchPathRes.params || {}
                     const intoRequestConfig = Request.getRequestConfigByRequest(ctx.request)
                     intoRequestConfig.params = params
                     const intoResponseConfig = Response.getResponseConfigByResponse(ctx.response)
