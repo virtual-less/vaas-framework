@@ -59,7 +59,7 @@ export interface RequestConfig {
     /**
      * Get request body.
      */
-     readonly body?: Record<string, unknown>;
+     readonly body?: Record<string, any>;
     
      /**
      * Get query string.
