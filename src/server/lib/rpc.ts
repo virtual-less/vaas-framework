@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import {parentPort} from 'worker_threads'
+import {convertError2ErrorConfig} from './error'
 import {ErrorMessage, ResultMessage, WorkerMessage} from '../../types/server'
 
 
@@ -12,9 +13,21 @@ export function workerPostMessage(
     error:Error
 ) {
     try {
+        if(value.type==='error') {
+            value.data.error = convertError2ErrorConfig({
+                error:value.data.error
+            })
+        }
         parentPort.postMessage(value)
     } catch {
-        parentPort.postMessage({type:'error',value:error})
+        parentPort.postMessage({
+            type:'error',
+            value:{
+                error:convertError2ErrorConfig({
+                    error
+                })
+            }
+        })
     }
 }
 

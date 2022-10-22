@@ -2,6 +2,7 @@ import {Worker, WorkerOptions} from 'worker_threads'
 import {promises as fsPromises} from 'fs'
 import {Buffer} from 'buffer'
 import * as path from 'path'
+import {convertError2ErrorConfig,convertErrorConfig2Error} from '../lib/error'
 import {WorkerMessage, ServerValue, ExecuteMessageBody, ExecuteMessage, GetAppConfigByAppName, ResultMessage, ErrorMessage} from '../../types/server'
 
 interface VaasWorkerOptions extends WorkerOptions {
@@ -60,7 +61,7 @@ class VaasWorker extends Worker {
                         type:'error',
                         data:{
                             executeId:executeMessageBody.executeId,
-                            error
+                            error:convertError2ErrorConfig({error})
                         }
                     }
                     this.postMessage(errorMessage)
@@ -104,7 +105,7 @@ class VaasWorker extends Worker {
                     return resolve(message.data.result)
                 }
                 if(message.type==='error') {
-                    return reject(message.data.error)
+                    return reject(convertErrorConfig2Error({errorConfig:message.data.error}))
                 }
             })
             const timeoutId = setTimeout(()=>{
@@ -195,7 +196,7 @@ export class VaasWorkPool {
                 if(message.type!=='init') {
                     worker.terminate()
                     if(message.type==='error') {
-                        return reject(message.data.error)
+                        return reject(convertErrorConfig2Error({errorConfig:message.data.error}))
                     } else {
                         return reject(new Error(`init ${appName} worker failed`))
                     }

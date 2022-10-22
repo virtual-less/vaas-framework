@@ -250,6 +250,12 @@ export interface HttpParams {
   res:ResponseConfig
 }
 
+export interface ErrorConfig {
+  message:string,
+  name:string,
+  stack:string,
+}
+
 export type  WorkerMessageType = 'init' | 'error' | 'execute' | 'result'
 export interface ExecuteMessageBody {
     appName:string, 
@@ -278,6 +284,7 @@ export interface ResultMessage {
   data:ResultMessageBody
 }
 
+// todo 要将error类型改为Error，并批量处理Error与ErrorConfig的转换
 export interface ErrorMessageBody {
   executeId?:string,
   error:any
