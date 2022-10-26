@@ -2,7 +2,7 @@ import { OutgoingHttpHeader } from "http";
 import { ResourceLimits } from "worker_threads";
 import * as Koa from 'koa';
 
-export type ServerType = 'http'| 'rpc'
+export type ServerType = 'http'|'websocket'| 'rpc'
 
 export interface ServerValue {
   type:ServerType,

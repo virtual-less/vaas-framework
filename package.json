@@ -39,7 +39,8 @@
     "node-fetch": "^2.6.7",
     "path-to-regexp": "^6.2.1",
     "uuid": "^9.0.0",
-    "vaas-core": "^1.1.1"
+    "vaas-core": "^1.1.1",
+    "ws": "^8.10.0"
   },
   "devDependencies": {
     "mocha": "^10.0.0",

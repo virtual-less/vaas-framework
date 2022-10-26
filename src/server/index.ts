@@ -3,7 +3,7 @@ import {Server as HttpServer} from 'http'
 
 import * as KoaBodyparser  from 'koa-bodyparser'
 import {outputCatch}  from './middleware/outputCatch'
-import {generateRouter}  from './middleware/router'
+import {generateRouter, webSocketStart}  from './middleware/router'
 import {VaasWorkPool} from './worker/pool'
 import {VaasConfig} from '../types/server'
 
@@ -32,7 +32,15 @@ export class VaasServer {
         }))
         return new Promise((resolve)=>{
             this.server = app.listen(port,()=>{
-                resolve(app)
+                // vaas服务支持webscoket，考虑是否开启
+                // 先beta吧，好用再正式开启
+                webSocketStart({
+                    app,
+                    server:this.server,
+                    vaasWorkPool,
+                    getAppNameByRequest,
+                })
+                return resolve(app)
             });
         })
         
