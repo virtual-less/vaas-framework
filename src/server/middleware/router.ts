@@ -62,7 +62,8 @@ async function getServerWorker({
                     appName,
                     serveName,
                     serveValue,
-                    vaasWorker
+                    vaasWorker,
+                    matchPathRes
                 }
             }
         }
@@ -97,15 +98,28 @@ export function webSocketStart({
                 typeList:['websocket']
             })
             wss.handleUpgrade(request, socket, head, (ws) => {
-                async function webSocketMessage (wsRequestData) {
-                    const {data} = await vaasWorker.execute({
-                        appName,
-                        serveName,
-                        executeId:uuidv4(),
-                        type:serveValue.type,
-                        params:wsRequestData
-                    })
-                    ws.send(data);
+                async function webSocketMessage (wsRequestData, isBin) {
+                    let res:any;
+                    try {
+                        const {data} = await vaasWorker.execute({
+                            appName,
+                            serveName,
+                            executeId:uuidv4(),
+                            type:serveValue.type,
+                            params:isBin?wsRequestData:wsRequestData.toString()
+                        })
+                        res = data
+                    } catch(error) {
+                        res = {
+                            message:error.message,
+                            stack:error.stack
+                        };
+                    }
+                    if(res instanceof Uint8Array || typeof res ==='string') {
+                        ws.send(res);
+                    } else {
+                        ws.send(JSON.stringify(res));
+                    }
                 }
                 ws.on('message', webSocketMessage);
                 ws.once('close',()=>{
@@ -113,8 +127,9 @@ export function webSocketStart({
                 })
             });
             
-        } finally {
+        } catch(error) {
             socket.destroy();
+            throw error
         }
     });
 }
@@ -133,7 +148,8 @@ export function generateRouter({
             appName,
             serveName,
             serveValue,
-            vaasWorker
+            vaasWorker,
+            matchPathRes
         } = await getServerWorker({
             ctx,
             vaasWorkPool,
