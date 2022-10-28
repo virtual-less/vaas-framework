@@ -3,13 +3,11 @@ import {parentPort, workerData} from 'worker_threads'
 
 
 import {VassServerConfigKey} from '../lib/decorator'
-import {workerPostMessage, getSerializableErrorByAppName} from '../lib/rpc'
+import {workerPostMessage} from '../lib/rpc'
 import {WorkerMessage, ExecuteMessageBody} from '../../types/server'
+import {deprecate} from 'util'
 
 const packageInfo = require('../../../package.json')
-
-
-const notSerializableError = getSerializableErrorByAppName(workerData.appName)
 
 export class VaasWorker {
 
@@ -18,8 +16,7 @@ export class VaasWorker {
         const app = new appClass()
         const appConfig = app[VassServerConfigKey]
         workerPostMessage(
-            {type:'init',data:{appConfig}},
-            new Error(`${workerData.appName}'s @VassServer config is not serializable`)
+            {type:'init',data:{appConfig}}
         )
         parentPort.on('message', async (message:WorkerMessage) => {
             if(message.type !=='execute') {return} 
@@ -40,7 +37,7 @@ export class VaasWorker {
                             executeId:executeMessage.executeId
                             }
                         }
-                    ,notSerializableError)
+                    )
                 } else {
                     workerPostMessage(
                         {
@@ -53,13 +50,13 @@ export class VaasWorker {
                                 executeId:executeMessage.executeId
                             }
                         }
-                    ,notSerializableError)
+                    )
                 }
                 
             } catch(error) {
                 workerPostMessage(
                     {type:'error',data:{error,executeId:executeMessage.executeId}}
-                ,notSerializableError)
+                )
             }
         })
     }
@@ -86,7 +83,10 @@ export class VaasWorker {
                             workerData.appDirPath
                         }], use ${packageInfo.name}.rpcInvote('app.server',{...}) to call server,please`)
                     } 
-                    if(!(/\.js$/.exec(callbackData.moduleId))) {
+                    if(!(/\.js$/.exec(callbackData.modulePath))) {
+                        if(/\.node$/.exec(callbackData.modulePath)) {
+                            deprecate(() => {}, `c++ extension method will be deprecated! [${callbackData.modulePath}]`)();
+                        }
                         return callbackData.nativeRequire(callbackData.modulePath)
                     }
                 } else {
@@ -115,21 +115,18 @@ export class VaasWorker {
 
 new VaasWorker().run().catch((error)=>{
     workerPostMessage(
-        {type:'error', data:{error}}, 
-        new Error(`${workerData.appName}'s Exception is not serializable`)
-        )
+        {type:'error', data:{error}}
+    )
 })
 
 process.on('uncaughtException', (error) => {
     workerPostMessage(
-        {type:'error', data:{error}}, 
-        new Error(`${workerData.appName}'s uncaughtException is not serializable`)
-        )
+        {type:'error', data:{error}},
+    )
 })
 
 process.on('unhandledRejection', (error) => {
     workerPostMessage(
-        {type:'error', data:{error}}, 
-        new Error(`${workerData.appName}'s unhandledRejection is not serializable`)
+        {type:'error', data:{error}}
     )
 })

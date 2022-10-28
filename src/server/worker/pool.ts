@@ -95,7 +95,7 @@ class VaasWorker extends Worker {
         return new Promise<any>((resolve,reject)=>{
             let isComplete = false
             const messageEventName = this.getExecuteEventName(executeId)
-            this.messageEventMap.set(messageEventName,(message)=>{
+            this.messageEventMap.set(messageEventName,(message:WorkerMessage)=>{
                 isComplete = true;
                 if(message.type==='result') {
                     // 兼容低版本node的buffer未转化问题

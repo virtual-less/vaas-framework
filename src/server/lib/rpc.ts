@@ -3,31 +3,27 @@ import {parentPort} from 'worker_threads'
 import {convertError2ErrorConfig} from './error'
 import {ErrorMessage, ResultMessage, WorkerMessage} from '../../types/server'
 
-
-export function getSerializableErrorByAppName(appName) {
-    return new Error(`${appName}'s data is not serializable`)
-}
-
 export function workerPostMessage(
-    value:WorkerMessage, 
-    error:Error
+    value:WorkerMessage
 ) {
+    
+    if(value.type==='error' && value.data?.error?.message) {
+        value.data.error = convertError2ErrorConfig({
+            error:value.data.error
+        })
+    }
     try {
-        if(value.type==='error') {
-            value.data.error = convertError2ErrorConfig({
-                error:value.data.error
-            })
-        }
         parentPort.postMessage(value)
-    } catch {
-        parentPort.postMessage({
+    } catch(error) {
+        const errorMessage:ErrorMessage = {
             type:'error',
-            value:{
+            data:{
                 error:convertError2ErrorConfig({
                     error
                 })
             }
-        })
+        }
+        parentPort.postMessage(errorMessage)
     }
 }
 
@@ -67,7 +63,7 @@ export async function rpcInvote<P,R>(appServerName:string,params:P):Promise<R> {
             type:'rpc',
             params
         }
-    },getSerializableErrorByAppName(appName))
+    })
     return new Promise((resolve,reject)=>{
         rpcEventMap.set(getRpcEventName(executeId),(message:ResultMessage|ErrorMessage)=>{
             if(message.type==='result') {
