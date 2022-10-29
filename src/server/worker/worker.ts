@@ -66,7 +66,15 @@ export class VaasWorker {
         const appProgram = dynamicRun({
             filepath:workerData.appEntryPath,
             extendVer:{
-                process:proxyData(process)
+                process:proxyData(process),
+                Buffer:proxyData(Buffer),
+                global:proxyData(global),
+                setTimeout:proxyData(setTimeout),
+                clearTimeout:proxyData(clearTimeout),
+                setInterval:proxyData(setInterval),
+                clearInterval:proxyData(clearInterval),
+                setImmediate:proxyData(setImmediate),
+                clearImmediate:proxyData(clearImmediate),
             },
             overwriteRequire:(callbackData)=>{
                 if(packageInfo.name === callbackData.moduleId) {

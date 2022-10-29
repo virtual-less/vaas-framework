@@ -1,6 +1,6 @@
 {
   "name": "vaas-framework",
-  "version": "1.0.35",
+  "version": "1.0.36",
   "description": "Virtual as a Service Framework",
   "main": "./build/index.js",
   "bin": {
@@ -39,7 +39,7 @@
     "node-fetch": "^2.6.7",
     "path-to-regexp": "^6.2.1",
     "uuid": "^9.0.0",
-    "vaas-core": "^1.1.1",
+    "vaas-core": "^1.1.2",
     "ws": "^8.10.0"
   },
   "devDependencies": {
