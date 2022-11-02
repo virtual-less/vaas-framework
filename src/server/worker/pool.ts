@@ -15,8 +15,12 @@ class VaasWorker extends Worker {
     updateAt:number
     recycleTime:number
     messageStatus:'runing'| null
+    isExit:boolean
     private latestExecuteId:string
-    private messageEventMap:Map<string,(message:WorkerMessage)=>void> = new Map()
+    private messageEventMap:Map<string,{
+        executeMessage:ExecuteMessage
+        callback:(message:WorkerMessage)=>void
+    }> = new Map()
     constructor(filename: string | URL, options?: VaasWorkerOptions) {
         super(filename, options)
         this.createAt = Date.now()
@@ -68,9 +72,9 @@ class VaasWorker extends Worker {
                 }
             } else {
                 const {executeId} = message.data;
-                const callback = this.messageEventMap.get(this.getExecuteEventName(executeId || this.latestExecuteId))
-                if(callback instanceof Function) {
-                    return callback(message)
+                const messageEvent = this.messageEventMap.get(this.getExecuteEventName(executeId || this.latestExecuteId))
+                if(messageEvent?.callback instanceof Function) {
+                    return messageEvent.callback(message)
                 }
             }
         }
@@ -78,6 +82,17 @@ class VaasWorker extends Worker {
     }
 
     execute({appName,serveName, executeId, type, params}:ExecuteMessageBody):Promise<any> {
+        if(this.isExit) {
+            if(this.latestExecuteId) {
+                const messageEvent = this.messageEventMap.get(this.getExecuteEventName(this.latestExecuteId))
+                throw new Error(`appName[${
+                    appName
+                }] worker was exit!maybe cause by ${
+                    messageEvent?.executeMessage?JSON.stringify(messageEvent.executeMessage):'unkown'
+                } request`)
+            }
+            throw new Error(`appName[${appName}] worker was exit`)
+        }
         this.updateAt = Date.now()
         const executeMessage:ExecuteMessage =  {
             type:'execute',
@@ -95,17 +110,20 @@ class VaasWorker extends Worker {
         return new Promise<any>((resolve,reject)=>{
             let isComplete = false
             const messageEventName = this.getExecuteEventName(executeId)
-            this.messageEventMap.set(messageEventName,(message:WorkerMessage)=>{
-                isComplete = true;
-                if(message.type==='result') {
-                    // 兼容低版本node的buffer未转化问题
-                    if(message.data.result.data instanceof Uint8Array) {
-                        message.data.result.data = Buffer.from(message.data.result.data)
+            this.messageEventMap.set(messageEventName,{
+                executeMessage,
+                callback:(message:WorkerMessage)=>{
+                    isComplete = true;
+                    if(message.type==='result') {
+                        // 兼容低版本node的buffer未转化问题
+                        if(message.data.result.data instanceof Uint8Array) {
+                            message.data.result.data = Buffer.from(message.data.result.data)
+                        }
+                        return resolve(message.data.result)
                     }
-                    return resolve(message.data.result)
-                }
-                if(message.type==='error') {
-                    return reject(convertErrorConfig2Error({errorConfig:message.data.error}))
+                    if(message.type==='error') {
+                        return reject(convertErrorConfig2Error({errorConfig:message.data.error}))
+                    }
                 }
             })
             const timeoutId = setTimeout(()=>{
@@ -119,7 +137,7 @@ class VaasWorker extends Worker {
     }
     
     recyclable() {
-        return this.updateAt+this.recycleTime<Date.now()
+        return this.isExit || (this.updateAt+this.recycleTime<Date.now())
     }
 }
 
@@ -210,9 +228,10 @@ export class VaasWorkPool {
                 return reject(err)
             });
             worker.once('exit', (code) => {
+                worker.isExit = true;
                 worker.removeAllListeners()
                 if (code !== 0)
-                return reject(new Error(`Worker stopped with exit code ${code}`));
+                return reject(new Error(`appName[${appName}] Worker stopped with exit code ${code}`));
             });
         })
     }
