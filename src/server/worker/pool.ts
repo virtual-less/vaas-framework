@@ -18,7 +18,7 @@ class VaasWorker extends Worker {
     isExit:boolean
     private latestExecuteId:string
     private messageEventMap:Map<string,{
-        executeMessage:ExecuteMessage
+        info:NodeJS.Dict<any>
         callback:(message:WorkerMessage)=>void
     }> = new Map()
     constructor(filename: string | URL, options?: VaasWorkerOptions) {
@@ -88,7 +88,7 @@ class VaasWorker extends Worker {
                 throw new Error(`appName[${
                     appName
                 }] worker was exit!maybe cause by ${
-                    messageEvent?.executeMessage?JSON.stringify(messageEvent.executeMessage):'unkown'
+                    messageEvent?.info?JSON.stringify(messageEvent.info):'unkown'
                 } request`)
             }
             throw new Error(`appName[${appName}] worker was exit`)
@@ -111,7 +111,13 @@ class VaasWorker extends Worker {
             let isComplete = false
             const messageEventName = this.getExecuteEventName(executeId)
             this.messageEventMap.set(messageEventName,{
-                executeMessage,
+                // 不建议info过大，对性能造成影响
+                info:{
+                    type,
+                    appName,
+                    serveName,
+                    executeId,
+                },
                 callback:(message:WorkerMessage)=>{
                     isComplete = true;
                     if(message.type==='result') {
