@@ -1,6 +1,6 @@
 {
   "name": "vaas-framework",
-  "version": "1.0.38",
+  "version": "1.0.39",
   "description": "Virtual as a Service Framework",
   "main": "./build/index.js",
   "bin": {
@@ -31,13 +31,14 @@
   "dependencies": {
     "@types/koa": "^2.13.5",
     "@types/koa-bodyparser": "^4.3.8",
+    "@types/koa-router": "^7.4.4",
     "@types/node": "^18.7.21",
     "commander": "^9.4.1",
     "compressing": "^1.6.2",
     "koa": "^2.13.4",
     "koa-bodyparser": "^4.3.0",
+    "koa-router": "^12.0.0",
     "node-fetch": "^2.6.7",
-    "path-to-regexp": "^6.2.1",
     "uuid": "^9.0.0",
     "vaas-core": "^1.1.2",
     "ws": "^8.10.0"

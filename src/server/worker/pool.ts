@@ -1,164 +1,9 @@
-import {Worker, WorkerOptions} from 'worker_threads'
 import {promises as fsPromises} from 'fs'
-import {Buffer} from 'buffer'
 import * as path from 'path'
-import {convertError2ErrorConfig,convertErrorConfig2Error} from '../lib/error'
-import {WorkerMessage, ServerValue, ExecuteMessageBody, ExecuteMessage, GetAppConfigByAppName, ResultMessage, ErrorMessage} from '../../types/server'
+import {convertErrorConfig2Error} from '../lib/error'
+import {WorkerMessage,GetAppConfigByAppName} from '../../types/server'
+import {VaasWorker, VaasWorkerSet} from './workerManage'
 
-interface VaasWorkerOptions extends WorkerOptions {
-    recycleTime:number
-}
-
-class VaasWorker extends Worker {
-    appServerConfigMap:Map<string, ServerValue>
-    createAt:number
-    updateAt:number
-    recycleTime:number
-    messageStatus:'runing'| null
-    isExit:boolean
-    private latestExecuteId:string
-    private messageEventMap:Map<string,{
-        info:NodeJS.Dict<any>
-        callback:(message:WorkerMessage)=>void
-    }> = new Map()
-    constructor(filename: string | URL, options?: VaasWorkerOptions) {
-        super(filename, options)
-        this.createAt = Date.now()
-        this.updateAt = Date.now()
-        this.recycleTime = options.recycleTime
-    }
-
-    private getExecuteEventName(eventName:string):string {
-        return `execute-${eventName}`
-    }
-
-    private doMessage() {
-        if(this.messageStatus ==='runing'){return;}
-        this.messageStatus = 'runing'
-        const messageFunc = async (message:WorkerMessage) => {
-            if(message.type==='init') {return;}
-            if(message.type==='execute') {
-                const executeMessageBody = message.data;
-                const vaasWorkPool = VaasWorkPool.instance;
-                const vaasWorker = await vaasWorkPool.getWokerByAppName({
-                    appName:executeMessageBody.appName,
-                })
-                try {
-                    const serverValue = vaasWorker.appServerConfigMap.get(executeMessageBody.serveName)
-                    if(serverValue.type!==executeMessageBody.type) {
-                        throw new Error(`appName[${executeMessageBody.appName}]'s serveName[${
-                            executeMessageBody.serveName
-                        }] not matched type[${executeMessageBody.type}]`)
-                    }
-                    const result = await vaasWorker.execute(executeMessageBody)
-                    const resultMessage:ResultMessage = {
-                        type:'result',
-                        data:{
-                            executeId:executeMessageBody.executeId,
-                            type:executeMessageBody.type,
-                            result
-                        }
-                    }
-                    this.postMessage(resultMessage)
-                } catch(error) {
-                    const errorMessage:ErrorMessage = {
-                        type:'error',
-                        data:{
-                            executeId:executeMessageBody.executeId,
-                            error:convertError2ErrorConfig({error})
-                        }
-                    }
-                    this.postMessage(errorMessage)
-                }
-            } else {
-                const {executeId} = message.data;
-                const messageEvent = this.messageEventMap.get(this.getExecuteEventName(executeId || this.latestExecuteId))
-                if(messageEvent?.callback instanceof Function) {
-                    return messageEvent.callback(message)
-                }
-            }
-        }
-        this.on('message', messageFunc)
-    }
-
-    execute({appName,serveName, executeId, type, params}:ExecuteMessageBody):Promise<any> {
-        if(this.isExit) {
-            if(this.latestExecuteId) {
-                const messageEvent = this.messageEventMap.get(this.getExecuteEventName(this.latestExecuteId))
-                throw new Error(`appName[${
-                    appName
-                }] worker was exit!maybe cause by ${
-                    messageEvent?.info?JSON.stringify(messageEvent.info):'unkown'
-                } request`)
-            }
-            throw new Error(`appName[${appName}] worker was exit`)
-        }
-        this.updateAt = Date.now()
-        const executeMessage:ExecuteMessage =  {
-            type:'execute',
-            data:{
-                type,
-                appName,
-                serveName,
-                executeId,
-                params
-            }
-        }
-        this.latestExecuteId = executeId;
-        this.postMessage(executeMessage)
-        this.doMessage();
-        return new Promise<any>((resolve,reject)=>{
-            let isComplete = false
-            const messageEventName = this.getExecuteEventName(executeId)
-            this.messageEventMap.set(messageEventName,{
-                // 不建议info过大，对性能造成影响
-                info:{
-                    type,
-                    appName,
-                    serveName,
-                    executeId,
-                },
-                callback:(message:WorkerMessage)=>{
-                    isComplete = true;
-                    if(message.type==='result') {
-                        // 兼容低版本node的buffer未转化问题
-                        if(message.data.result.data instanceof Uint8Array) {
-                            message.data.result.data = Buffer.from(message.data.result.data)
-                        }
-                        return resolve(message.data.result)
-                    }
-                    if(message.type==='error') {
-                        return reject(convertErrorConfig2Error({errorConfig:message.data.error}))
-                    }
-                }
-            })
-            const timeoutId = setTimeout(()=>{
-                clearTimeout(timeoutId)
-                this.messageEventMap.delete(messageEventName)
-                if(!isComplete) {
-                    return reject(new Error(`worker run time out[${this.recycleTime}]`))
-                }
-            }, this.recycleTime)
-        })
-    }
-    
-    recyclable() {
-        return this.isExit || (this.updateAt+this.recycleTime<Date.now())
-    }
-}
-
-class VaasWorkerSet extends Set<VaasWorker> {
-    private workerIterator:IterableIterator<VaasWorker>
-    next() {
-        if(!this.workerIterator){this.workerIterator = this.values()}
-        const nextValue = this.workerIterator.next()
-        if(nextValue.done) {
-            this.workerIterator = this.values()
-            return this.workerIterator.next().value;
-        }
-        return nextValue.value;
-    }
-}
 
 export class VaasWorkPool {
     pool:Map<string,VaasWorkerSet> = new Map<string,VaasWorkerSet>()
@@ -191,6 +36,7 @@ export class VaasWorkPool {
             if(vaasWorker.recyclable()) {
                 vaasWorkerSet.delete(vaasWorker)
                 vaasWorker.terminate()
+                vaasWorker.poolInstance = null
                 if(vaasWorkerSet.size<=0) {
                     this.pool.delete(appName)
                 }
@@ -211,6 +57,8 @@ export class VaasWorkPool {
             throw FileNotExistError;
         }
         const worker = new VaasWorker(path.join(__dirname,'worker.js'),{
+            appName,
+            poolInstance:this,
             resourceLimits,
             recycleTime,
             workerData:{appsDir,appName,appDirPath,appEntryPath,allowModuleSet}
@@ -226,6 +74,7 @@ export class VaasWorkPool {
                     }
                 }
                 worker.appServerConfigMap = message.data.appConfig
+                worker.generateRouter()
                 return reslove(worker)
             });
             worker.once('error', (err)=>{
