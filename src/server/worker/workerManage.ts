@@ -179,6 +179,11 @@ export class VaasWorker extends Worker {
 
 export class VaasWorkerSet extends Set<VaasWorker> {
     private workerIterator:IterableIterator<VaasWorker>
+    maxSize:number=0
+    constructor(iterable: Iterable<VaasWorker> ,maxSize:number) {
+        super(iterable)
+        this.maxSize = maxSize
+    }
     next() {
         if(!this.workerIterator){this.workerIterator = this.values()}
         const nextValue = this.workerIterator.next()
