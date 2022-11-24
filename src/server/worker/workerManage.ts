@@ -117,6 +117,13 @@ export class VaasWorker extends Worker {
         return new Promise<any>((resolve,reject)=>{
             let isComplete = false
             const messageEventName = this.getExecuteEventName(executeId)
+            const timeoutId = setTimeout(()=>{
+                // clearTimeout(timeoutId) //没必要清除
+                this.messageEventMap.delete(messageEventName)
+                if(!isComplete) {
+                    return reject(new Error(`worker run time out[${this.recycleTime}]`))
+                }
+            }, this.recycleTime)
             this.messageEventMap.set(messageEventName,{
                 // 不建议info过大，对性能造成影响
                 info:{
@@ -127,6 +134,8 @@ export class VaasWorker extends Worker {
                 },
                 callback:(message:WorkerMessage)=>{
                     isComplete = true;
+                    // 这里是为了性能优化，防止无效setTimeout积压
+                    clearTimeout(timeoutId)
                     if(message.type==='result') {
                         // 兼容低版本node的buffer未转化问题
                         if(message.data.result.data instanceof Uint8Array) {
@@ -139,13 +148,6 @@ export class VaasWorker extends Worker {
                     }
                 }
             })
-            const timeoutId = setTimeout(()=>{
-                clearTimeout(timeoutId)
-                this.messageEventMap.delete(messageEventName)
-                if(!isComplete) {
-                    return reject(new Error(`worker run time out[${this.recycleTime}]`))
-                }
-            }, this.recycleTime)
         })
     }
 
