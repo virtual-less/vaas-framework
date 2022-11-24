@@ -7,7 +7,7 @@ export type ServerType = 'http'|'websocket'| 'rpc'
 export interface ServerValue {
   type:ServerType,
   method?: 'get' | 'post' | 'put' | 'delete' | 'patch'| 'options';
-  routerName?: string | RegExp;
+  routerName?: string;
 }
 
 export interface AppConfig {
