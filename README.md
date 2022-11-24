@@ -88,6 +88,7 @@ export interface ServerValue {
   routerName?: string;
 }
 ```
+routerName will be translated to regular expressions using [path-to-regexp](https://github.com/pillarjs/path-to-regexp).
 ## req&res
 ```ts
 export interface HttpParams {
