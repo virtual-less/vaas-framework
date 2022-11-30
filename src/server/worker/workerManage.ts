@@ -162,11 +162,9 @@ export class VaasWorker extends Worker {
                 ctx.serveName = serveName
                 ctx.serveValue = serveValue
             }
-            if(serveValue.routerName) {
-                workerRootRouter[serveValue.method](serveValue.routerName, middleware)
-            } else {
-                workerRootRouter[serveValue.method](`/${serveName}`, middleware)
-            }
+            const method = serveValue.method || 'all'
+            const routerName = serveValue.routerName || `/${serveName}`
+            workerRootRouter[method](routerName, middleware)
         }
         this.rootRoutes = workerRootRouter.routes()
         const workerRouter = new Router()
