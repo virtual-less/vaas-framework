@@ -95,10 +95,10 @@ export class VaasWorkPool {
     async getWorkConfigByAppName({appName}) {
         const appsDir = this.appsDir;
         const appConfig = await this.getAppConfigByAppName(appName)
-        const maxWorkerNum=appConfig.maxWorkerNum
-        const allowModuleSet=appConfig.allowModuleSet
-        const recycleTime=appConfig.timeout
-        const resourceLimits=appConfig.resourceLimits
+        const maxWorkerNum = appConfig.maxWorkerNum
+        const allowModuleSet = new Set(appConfig.allowModuleSet)
+        const recycleTime = appConfig.timeout
+        const resourceLimits = appConfig.resourceLimits
         return {
             appsDir,
             maxWorkerNum,
