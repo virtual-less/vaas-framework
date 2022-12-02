@@ -2,7 +2,7 @@ import {dynamicRun, proxyData} from 'vaas-core'
 import {parentPort, workerData} from 'worker_threads'
 
 
-import {VassServerConfigKey} from '../lib/decorator'
+import {VaasServerConfigKey} from '../lib/decorator'
 import {workerPostMessage} from '../lib/rpc'
 import {WorkerMessage, ExecuteMessageBody} from '../../types/server'
 import {deprecate} from 'util'
@@ -14,7 +14,7 @@ export class VaasWorker {
     async run() {
         const appClass = await this.loadServer()
         const app = new appClass()
-        const appConfig = app[VassServerConfigKey]
+        const appConfig = app[VaasServerConfigKey]
         workerPostMessage(
             {type:'init',data:{appConfig}}
         )

@@ -2,7 +2,7 @@
 Virtual as a Service Framework
 
 # Structure
-![Structure](https://raw.githubusercontent.com/virtual-less/assets/main/vass-framework.png)
+![Structure](https://raw.githubusercontent.com/virtual-less/assets/main/vaas-framework.png)
 
 # Quick Start
 Quick init vaas project command:
@@ -15,7 +15,7 @@ npm init vaas
 import {VaasServerType, Decorator } from 'vaas-framework'
 
 export default class Mini {
-    @Decorator.VassServer({type:'http',method:'get',routerName:'/hello'})
+    @Decorator.VaasServer({type:'http',method:'get',routerName:'/hello'})
     async hello({req,res}:VaasServerType.HttpParams) {
         return {
             hello:'world'
@@ -76,9 +76,9 @@ interface ResourceLimits {
   stackSizeMb?: number | undefined;
 }
 ```
-## Decorator.VassServer
+## Decorator.VaasServer
 ```ts
-export function VassServer(vassServer:ServerValue={type:'http'})
+export function VaasServer(vaasServer:ServerValue={type:'http'})
 ```
 * type ServerValue
 ```ts
