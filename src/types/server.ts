@@ -25,11 +25,16 @@ export interface GetAppConfigByAppName {
   (appName:string): Promise<AppConfig>;
 }
 
+export interface GetByPassFlowVersion {
+  (appName:string): Promise<string>;
+}
+
 export interface VaasConfig {
   appsDir:string,
   port:number,
   getAppNameByRequest:GetAppNameByRequest, 
   getAppConfigByAppName:GetAppConfigByAppName,
+  getByPassFlowVersion:GetByPassFlowVersion,
   showErrorStack:boolean
 }
 

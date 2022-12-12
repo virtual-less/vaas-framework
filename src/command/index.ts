@@ -40,6 +40,10 @@ function getConfig(configPath) {
                 allowModuleSet:new Set(['*']),
                 timeout: 30*1000
             }
+        },
+        getByPassFlowVersion:async (_appName)=>{
+            // 如果返回空字符串，则直接读取当前目录
+            return ''
         }, 
         showErrorStack:true
     },vaasConfig)
@@ -74,7 +78,7 @@ program.command('deploy')
 .option('-a, --appNames <appname>', 'platform remote address', '*')
 .action(async (options) => {
     if(!options.platformAddressHost) {
-        throw 'option platformAddressHost can\'t be empty!'
+        throw new Error('option platformAddressHost can\'t be empty!')
     }
     const getUploadUrlApi = `${options.platformAddressHost}/getUploadUrl`
     const deployApi = `${options.platformAddressHost}/deploy`
@@ -82,10 +86,10 @@ program.command('deploy')
     const appNameList = await fsPromises.readdir(config.appsDir)
     const appNamesList = options.appNames.split(',')
     for(const appName of appNameList) {
-        if(['.','..'].includes(appName)){continue}
+        if(['.', '..', '.DS_Store'].includes(appName)){continue}
         const IsPackageApp = appNamesList.includes('*') || appNamesList.includes(appName)
         if(!IsPackageApp){continue}
-        const fileName = `${appName}.tgz`
+        const fileName = `${appName}.zip`
         const getUploadUrlResp = await fetch(`${getUploadUrlApi}?fileName=${fileName}`)
         const getUploadUrlJson = await getUploadUrlResp.json()
         getApiJsonError(getUploadUrlJson)
@@ -93,17 +97,26 @@ program.command('deploy')
         const appDirPath = path.join(config.appsDir,appName)
         const stat = await fsPromises.stat(appDirPath)
         if(!stat.isDirectory()){continue}
-        await compressing.tgz.compressDir(appDirPath,distAppPath)
+        await compressing.zip.compressDir(appDirPath,distAppPath,{
+            ignoreBase:true
+        })
         await fetch(getUploadUrlJson.data.uploadUrl, { 
             method: 'PUT', 
             body: await fsPromises.readFile(distAppPath)
         })
         await fsPromises.unlink(distAppPath)
+        const appPackageJsonPath = path.join(appDirPath, 'package.json')
+        const appPackageJsonStat = await fsPromises.stat(appPackageJsonPath)
+        if(!appPackageJsonStat.isFile()){
+            throw new Error(`appDir[${appDirPath}] not have package.json!`)
+        }
+        const appPackageJson = require(appPackageJsonPath)
         const deployApiResp = await fetch(deployApi, {
             method: 'post',
             body: JSON.stringify({
-                appBuildTgzS3Key:getUploadUrlJson.data.key,
-                appName
+                appBuildS3Key:getUploadUrlJson.data.key,
+                appName,
+                version: appPackageJson.version
             }),
             headers: {'Content-Type': 'application/json'}
         })

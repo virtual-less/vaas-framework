@@ -5,7 +5,7 @@ import { WebSocketServer } from 'ws';
 
 
 import {VaasWorkPool} from '../worker/pool'
-import {GetAppNameByRequest} from '../../types/server'
+import {GetAppNameByRequest, GetByPassFlowVersion} from '../../types/server'
 import { Request } from '../lib/request'
 import { Response } from '../lib/response'
 
@@ -15,10 +15,12 @@ async function getServerWorker({
     ctx,
     vaasWorkPool,
     getAppNameByRequest,
+    getByPassFlowVersion
 }:{
     ctx:Koa.Context
     vaasWorkPool:VaasWorkPool,
     getAppNameByRequest:GetAppNameByRequest,
+    getByPassFlowVersion:GetByPassFlowVersion,
 }) {
     let urlPath = ctx.path
     let appName = await getAppNameByRequest(ctx.request)
@@ -29,9 +31,12 @@ async function getServerWorker({
         appName = matchApp[2] || matchApp[3]
         isRootRoute = false
     }
+    const version = await getByPassFlowVersion(appName)
     ctx.appName = appName
+    ctx.version = version
     const vaasWorker = await vaasWorkPool.getWokerByAppName({
         appName,
+        version
     })
     // 这里的操作只是赋值ctx，所以不需要真的next
     const next = ()=>{}
@@ -50,11 +55,13 @@ export function webSocketStart({
     server,
     vaasWorkPool,
     getAppNameByRequest,
+    getByPassFlowVersion
 }:{
     app:Koa,
     server:HttpServer,
     vaasWorkPool:VaasWorkPool,
     getAppNameByRequest:GetAppNameByRequest,
+    getByPassFlowVersion:GetByPassFlowVersion,
 }) {
     const wss = new WebSocketServer({ noServer: true });
     server.on('upgrade', async (request, socket, head) => {
@@ -63,7 +70,8 @@ export function webSocketStart({
             const vaasWorker = await getServerWorker({
                 ctx,
                 vaasWorkPool,
-                getAppNameByRequest
+                getAppNameByRequest,
+                getByPassFlowVersion
             })
             if(!ctx.serveName) {
                 throw new Error(`this App(${ctx.appName}) not path has matched[${ctx.path}]`)
@@ -109,16 +117,19 @@ export function webSocketStart({
 export function httpStart({
     vaasWorkPool,
     getAppNameByRequest,
+    getByPassFlowVersion
 }:{
     vaasWorkPool:VaasWorkPool,
     getAppNameByRequest:GetAppNameByRequest,
+    getByPassFlowVersion:GetByPassFlowVersion,
 }) {
     
     return async function (ctx:Koa.Context) {
         const vaasWorker = await getServerWorker({
             ctx,
             vaasWorkPool,
-            getAppNameByRequest
+            getAppNameByRequest,
+            getByPassFlowVersion
         })
         if(!ctx.serveName) {
             throw new Error(`this App(${ctx.appName}) not path has matched[${ctx.path}]`)

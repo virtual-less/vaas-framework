@@ -13,7 +13,10 @@ export class VaasServer {
     server:HttpServer
     run({
         appsDir, port, 
-        getAppNameByRequest, getAppConfigByAppName, showErrorStack
+        getAppNameByRequest, 
+        getAppConfigByAppName, 
+        getByPassFlowVersion,
+        showErrorStack
     }:VaasConfig):Promise<Koa> {
         const vaasWorkPool = new VaasWorkPool({
             appsDir,
@@ -28,7 +31,9 @@ export class VaasServer {
             xmlLimit:'30mb',
         }))
         app.use(httpStart({
-            vaasWorkPool,getAppNameByRequest,
+            vaasWorkPool,
+            getAppNameByRequest,
+            getByPassFlowVersion
         }))
         return new Promise((resolve)=>{
             this.server = app.listen(port,()=>{
@@ -37,6 +42,7 @@ export class VaasServer {
                     server:this.server,
                     vaasWorkPool,
                     getAppNameByRequest,
+                    getByPassFlowVersion
                 })
                 return resolve(app)
             });

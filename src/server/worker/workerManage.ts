@@ -6,12 +6,14 @@ import * as Router from 'koa-router';
 import { Context } from 'koa';
 interface VaasWorkerOptions extends WorkerOptions {
     appName:string;
+    version:string;
     recycleTime:number;
     poolInstance:any;
 }
 
 export class VaasWorker extends Worker {
     appName:string;
+    version:string;
     poolInstance:any;
     appServerConfigMap:Map<string, ServerValue>
     createAt:number
@@ -31,6 +33,7 @@ export class VaasWorker extends Worker {
         this.createAt = Date.now()
         this.updateAt = Date.now()
         this.appName = options.appName
+        this.version = options.version
         this.recycleTime = options.recycleTime
         this.poolInstance = options.poolInstance
     }
@@ -49,7 +52,7 @@ export class VaasWorker extends Worker {
                 try {
                     let vaasWorker = this
                     if(this.appName!==executeMessageBody.appName) {
-                        vaasWorker = await this.poolInstance.getWokerByAppName({appName:executeMessageBody.appName})
+                        vaasWorker = await this.poolInstance.getWokerByAppName({appName:executeMessageBody.appName, version:this.version})
                     }
                     const serverValue = vaasWorker.appServerConfigMap.get(executeMessageBody.serveName)
                     if(serverValue.type!==executeMessageBody.type) {
