@@ -1,4 +1,3 @@
-import {promises as fsPromises} from 'fs'
 import * as path from 'path'
 import {convertErrorConfig2Error} from '../lib/error'
 import {WorkerMessage, GetAppConfigByAppName} from '../../types/server'
@@ -59,22 +58,14 @@ export class VaasWorkPool {
         appsDir,appName,version,
         allowModuleSet,recycleTime,resourceLimits
     }):Promise<VaasWorker> {
-        const appDirPath = path.join(appsDir,appName)
-        const appEntryPath = path.join(appDirPath, version, 'index.js');
-        const FileNotExistError = new Error(`该微服务(${appName})不存在index入口文件`)
-        try {
-            const appEntryStat = await fsPromises.stat(appEntryPath);
-            if(!appEntryStat.isFile()) {throw FileNotExistError;}
-        } catch(err) {
-            throw FileNotExistError;
-        }
+        const appDirPath = path.join(appsDir,appName, version)
         const worker = new VaasWorker(path.join(__dirname,'worker.js'),{
             appName,
             version,
             poolInstance:this,
             resourceLimits,
             recycleTime,
-            workerData:{appsDir,appName,appDirPath,appEntryPath,allowModuleSet}
+            workerData:{appsDir,appName,appDirPath,allowModuleSet}
         })
         return await new Promise((reslove,reject)=>{
             worker.once('message', (message:WorkerMessage)=>{
