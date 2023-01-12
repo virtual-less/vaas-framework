@@ -4,3 +4,5 @@ export  * as Decorator from './server/lib/decorator'
 
 export {rpcInvote} from './server/lib/rpc';
 export {VaasServer} from './server/index'
+
+export * as util from './util'
