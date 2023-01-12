@@ -18,4 +18,5 @@ export function entryClassMixins(baseClass: any, classItemList: any[]) {
         baseClass.prototype[funcName] = classItem.prototype[funcName]
       }
     }
+    return baseClass
 }
