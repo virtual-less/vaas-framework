@@ -13,6 +13,10 @@ export function entryClassMixins(baseClass: any, classItemList: any[]) {
             continue
           }
           if(funcName ==='constructor') {
+            baseClass.prototype[funcName] = (...args)=>{
+              classItem.prototype[funcName](...args)
+              return baseClass.prototype[funcName](...args)
+            }
             continue
           }
           throw new Error('该方法已存在，不能进行entryClassMixins')
