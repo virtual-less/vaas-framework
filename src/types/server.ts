@@ -1,6 +1,7 @@
 import { OutgoingHttpHeader } from "http";
 import { ResourceLimits } from "worker_threads";
 import * as Koa from 'koa';
+import { VaasWorkerStream } from "../server/worker/workerStream";
 
 export type ServerType = 'http'|'websocket'| 'rpc'
 
@@ -280,6 +281,9 @@ export interface ResultMessageBody {
   type:ServerType,
   result:{
     data:any,
+    isComplete:boolean,
+    isStream:boolean,
+    stream?:VaasWorkerStream,
     [key:string]:any
   }
 }

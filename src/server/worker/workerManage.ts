@@ -4,6 +4,7 @@ import {convertError2ErrorConfig,convertErrorConfig2Error} from '../lib/error'
 import {WorkerMessage, ServerValue, ExecuteMessageBody, ExecuteMessage, ResultMessage, ErrorMessage} from '../../types/server'
 import * as Router from 'koa-router';
 import { Context } from 'koa';
+import { VaasWorkerStream } from './workerStream';
 interface VaasWorkerOptions extends WorkerOptions {
     appName:string;
     version:string;
@@ -120,13 +121,15 @@ export class VaasWorker extends Worker {
         return new Promise<any>((resolve,reject)=>{
             let isComplete = false
             const messageEventName = this.getExecuteEventName(executeId)
-            const timeoutId = setTimeout(()=>{
+            const clearMessage = ()=>{
                 // clearTimeout(timeoutId) //没必要清除
                 this.messageEventMap.delete(messageEventName)
                 if(!isComplete) {
                     return reject(new Error(`worker run time out[${this.recycleTime}]`))
                 }
-            }, this.recycleTime)
+            }
+            const timeoutId = setTimeout(clearMessage, this.recycleTime)
+            const workerStream = new VaasWorkerStream()
             this.messageEventMap.set(messageEventName,{
                 // 不建议info过大，对性能造成影响
                 info:{
@@ -137,12 +140,30 @@ export class VaasWorker extends Worker {
                 },
                 callback:(message:WorkerMessage)=>{
                     isComplete = true;
-                    // 这里是为了性能优化，防止无效setTimeout积压
-                    clearTimeout(timeoutId)
+                    if(message.type==='result') {
+                        isComplete = message.data.result.isComplete
+                    }
+                    if(isComplete) {
+                        clearMessage()
+                        // 这里是为了性能优化，防止无效setTimeout积压
+                        clearTimeout(timeoutId)
+                    }
                     if(message.type==='result') {
                         // 兼容低版本node的buffer未转化问题
                         if(message.data.result.data instanceof Uint8Array) {
                             message.data.result.data = Buffer.from(message.data.result.data)
+                        }
+
+                        if(message.data.result.isStream) {
+                            if(message.data.result.data.chunk instanceof Uint8Array) {
+                                message.data.result.data.chunk = Buffer.from(message.data.result.data.chunk)
+                            }
+                            if(isComplete) {
+                                workerStream.writeComplete();
+                            } else {
+                                workerStream.write(message.data.result.data.chunk);
+                            }
+                            message.data.result.stream = workerStream
                         }
                         return resolve(message.data.result)
                     }

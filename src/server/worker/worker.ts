@@ -2,6 +2,7 @@ import {dynamicRun, proxyData} from 'vaas-core'
 import {parentPort, workerData} from 'worker_threads'
 import {promises as fsPromises} from 'fs'
 import * as path from 'path'
+import { Readable, Writable, pipeline } from 'stream';
 
 
 import {VaasServerConfigKey} from '../lib/decorator'
@@ -11,7 +12,54 @@ import {deprecate} from 'util'
 
 const packageInfo = require('../../../package.json')
 
+
+const pipelinePromise = (source: any, destination: NodeJS.WritableStream) => {
+    return new Promise((resolve,reject)=>{
+        const writableStream = pipeline(source,destination,(error)=>{
+            if(error) return reject(error)
+            return resolve(writableStream);
+        })
+    })
+}
+
 export class VaasWorker {
+
+    postExecuteMessage({executeMessage, data, isComplete, isStream}:{executeMessage:ExecuteMessageBody,data:any, isComplete:boolean, isStream:boolean}) {
+        if(executeMessage.type==='http') {
+            workerPostMessage(
+                {
+                    type:'result',
+                    data:{
+                    result:{
+                        isComplete,
+                        isStream,
+                        outRequestConfig:executeMessage.params.req, 
+                        outResponseConfig:executeMessage.params.res, 
+                        data
+                    },
+                    type:executeMessage.type,
+                    executeId:executeMessage.executeId
+                    }
+                }
+            )
+        } else {
+            workerPostMessage(
+                {
+                    type:'result',
+                    data:{
+                        result:{
+                            isComplete,
+                            isStream,
+                            data
+                        },
+                        type:executeMessage.type,
+                        executeId:executeMessage.executeId
+                    }
+                }
+            )
+        }
+    }
+
 
     async run() {
         const appClass = await this.loadServer()
@@ -25,36 +73,18 @@ export class VaasWorker {
             const executeMessage:ExecuteMessageBody= message.data;
             try {
                 const data = await app[executeMessage.serveName](executeMessage.params)
-                if(executeMessage.type==='http') {
-                    workerPostMessage(
-                        {
-                            type:'result',
-                            data:{
-                            result:{
-                                outRequestConfig:executeMessage.params.req, 
-                                outResponseConfig:executeMessage.params.res, 
-                                data
-                            },
-                            type:executeMessage.type,
-                            executeId:executeMessage.executeId
-                            }
-                        }
-                    )
+                if(data instanceof Readable) {
+                    const ws = new Writable({
+                        write:(chunk, encoding, callback) => {
+                            this.postExecuteMessage({executeMessage,data:{chunk,encoding},isComplete:false,isStream:true})
+                            callback()
+                        },
+                    });
+                    await pipelinePromise(data, ws)
+                    this.postExecuteMessage({executeMessage,data:{chunk:null,encoding:''},isComplete:true,isStream:true})
                 } else {
-                    workerPostMessage(
-                        {
-                            type:'result',
-                            data:{
-                                result:{
-                                    data
-                                },
-                                type:executeMessage.type,
-                                executeId:executeMessage.executeId
-                            }
-                        }
-                    )
+                    this.postExecuteMessage({executeMessage,data,isComplete:true,isStream:false})
                 }
-                
             } catch(error) {
                 workerPostMessage(
                     {type:'error',data:{error,executeId:executeMessage.executeId}}

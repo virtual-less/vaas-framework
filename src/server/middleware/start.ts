@@ -8,6 +8,7 @@ import {VaasWorkPool} from '../worker/pool'
 import {GetAppNameByRequest, GetByPassFlowVersion} from '../../types/server'
 import { Request } from '../lib/request'
 import { Response } from '../lib/response'
+import { VaasWorkerStream } from '../worker/workerStream';
 
 
 
@@ -79,8 +80,10 @@ export function webSocketStart({
             wss.handleUpgrade(request, socket, head, (ws) => {
                 async function webSocketMessage (wsRequestData, isBin) {
                     let res:any;
+                    let isResStream:boolean;
+                    let resStream:VaasWorkerStream;
                     try {
-                        const {data} = await vaasWorker.execute({
+                        const { data, isStream, stream } = await vaasWorker.execute({
                             appName:ctx.appName,
                             serveName:ctx.serveName,
                             executeId:uuidv4(),
@@ -88,17 +91,27 @@ export function webSocketStart({
                             params:isBin?wsRequestData:wsRequestData.toString()
                         })
                         res = data
+                        isResStream = isStream;
+                        resStream = stream;
                     } catch(error) {
                         res = {
                             message:error.message,
                             stack:error.stack
                         };
                     }
-                    if(res instanceof Uint8Array || typeof res ==='string') {
-                        ws.send(res);
+                    if(isResStream) {
+                        resStream.addWriteCallBack((chunk)=>{
+                            ws.send(chunk)
+                        })
+                        await resStream.waitWriteComplete()
                     } else {
-                        ws.send(JSON.stringify(res));
+                        if(res instanceof Uint8Array || typeof res ==='string') {
+                            ws.send(res);
+                        } else {
+                            ws.send(JSON.stringify(res));
+                        }
                     }
+                    
                 }
                 ws.on('message', webSocketMessage);
                 ws.once('close',()=>{
@@ -137,7 +150,7 @@ export function httpStart({
         const intoRequestConfig = Request.getRequestConfigByRequest(ctx.request)
         intoRequestConfig.params = ctx.params
         const intoResponseConfig = Response.getResponseConfigByResponse(ctx.response)
-        const {outRequestConfig, outResponseConfig, data} = await vaasWorker.execute({
+        const {outRequestConfig, outResponseConfig, data, isStream, stream} = await vaasWorker.execute({
             appName:ctx.appName,
             serveName:ctx.serveName,
             executeId:uuidv4(),
@@ -150,6 +163,16 @@ export function httpStart({
         })
         Request.mergeRequestConfig2Request({request: ctx.request, requestConfig: outRequestConfig})
         Response.mergeResponseConfig2Response({response: ctx.response, responseConfig: outResponseConfig})
-        return ctx.body = data
+        
+        if(isStream) {
+            stream.addWriteCallBack((chunk)=>{
+                ctx.res.write(chunk)
+            })
+            await stream.waitWriteComplete()
+            ctx.res.end()
+        } else {
+            return ctx.body = data
+        }
+        
     }
 }
