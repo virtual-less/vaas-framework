@@ -132,6 +132,10 @@ export class VaasWorker {
                 clearImmediate:proxyData(clearImmediate),
             },
             overwriteRequire:(callbackData)=>{
+                const useVmLoadDependencies = workerData.useVmLoadDependencies
+                if(!useVmLoadDependencies && callbackData.moduleId[0]!=='.' && callbackData.moduleId[0]!=='/') {
+                    return callbackData.nativeRequire(callbackData.moduleId)
+                }
                 if(packageInfo.name === callbackData.moduleId) {
                     return callbackData.nativeRequire(callbackData.moduleId)
                 }

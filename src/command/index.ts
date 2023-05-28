@@ -38,7 +38,8 @@ function getConfig(configPath) {
             return {
                 maxWorkerNum: 2,
                 allowModuleSet:new Set(['*']),
-                timeout: 30*1000
+                timeout: 30*1000,
+                useVmLoadDependencies:true
             }
         },
         getByPassFlowVersion:async (_appName)=>{

@@ -16,6 +16,7 @@ export interface AppConfig {
   allowModuleSet:Set<string>,
   timeout:number,
   resourceLimits?:ResourceLimits
+  useVmLoadDependencies:boolean
 }
 
 export interface GetAppNameByRequest {
@@ -260,6 +261,17 @@ export interface ErrorConfig {
   message:string,
   name:string,
   stack:string,
+}
+
+export interface  WorkerConfig {
+    appName:string,
+    version:string,
+    appsDir:string,
+    maxWorkerNum:number,
+    allowModuleSet:Set<string>,
+    recycleTime:number,
+    resourceLimits:ResourceLimits,
+    useVmLoadDependencies:boolean
 }
 
 export type  WorkerMessageType = 'init' | 'error' | 'execute' | 'result'

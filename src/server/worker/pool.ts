@@ -1,6 +1,6 @@
 import * as path from 'path'
 import {convertErrorConfig2Error} from '../lib/error'
-import {WorkerMessage, GetAppConfigByAppName} from '../../types/server'
+import {WorkerMessage, GetAppConfigByAppName, WorkerConfig} from '../../types/server'
 import {VaasWorker, VaasWorkerSet} from './workerManage'
 
 
@@ -56,8 +56,9 @@ export class VaasWorkPool {
     }
     private async getWorker({
         appsDir,appName,version,
-        allowModuleSet,recycleTime,resourceLimits
-    }):Promise<VaasWorker> {
+        allowModuleSet,recycleTime,resourceLimits,
+        useVmLoadDependencies
+    }:WorkerConfig):Promise<VaasWorker> {
         const appDirPath = path.join(appsDir,appName, version)
         const worker = new VaasWorker(path.join(__dirname,'worker.js'),{
             appName,
@@ -65,7 +66,7 @@ export class VaasWorkPool {
             poolInstance:this,
             resourceLimits,
             recycleTime,
-            workerData:{appsDir,appName,appDirPath,allowModuleSet}
+            workerData:{appsDir,appName,appDirPath,allowModuleSet,useVmLoadDependencies}
         })
         return await new Promise((reslove,reject)=>{
             worker.once('message', (message:WorkerMessage)=>{
@@ -95,19 +96,17 @@ export class VaasWorkPool {
         })
     }
 
-    async getWorkConfigByAppName({appName}) {
-        const appsDir = this.appsDir;
+    async getWorkConfigByAppName({appName,version}): Promise<WorkerConfig> {
         const appConfig = await this.getAppConfigByAppName(appName)
-        const maxWorkerNum = appConfig.maxWorkerNum
-        const allowModuleSet = new Set(appConfig.allowModuleSet)
-        const recycleTime = appConfig.timeout
-        const resourceLimits = appConfig.resourceLimits
         return {
-            appsDir,
-            maxWorkerNum,
-            allowModuleSet,
-            recycleTime,
-            resourceLimits
+            appName,
+            version,
+            appsDir:this.appsDir,
+            maxWorkerNum:appConfig.maxWorkerNum,
+            allowModuleSet:new Set(appConfig.allowModuleSet),
+            recycleTime:appConfig.timeout,
+            resourceLimits:appConfig.resourceLimits,
+            useVmLoadDependencies:appConfig.useVmLoadDependencies
         }
     }
 
@@ -128,15 +127,8 @@ export class VaasWorkPool {
         if(appPool.has(version)) {
             const vaasWorkerSet = appPool.get(version)
             if(vaasWorkerSet.size<vaasWorkerSet.maxSize){
-                const workConfig = await this.getWorkConfigByAppName({appName});
-                const vaasWorker = await this.getWorker({
-                    appsDir:workConfig.appsDir,
-                    appName,
-                    version,
-                    allowModuleSet:workConfig.allowModuleSet,
-                    resourceLimits:workConfig.resourceLimits,
-                    recycleTime:workConfig.recycleTime,
-                })
+                const workConfig = await this.getWorkConfigByAppName({appName,version});
+                const vaasWorker = await this.getWorker(workConfig)
                 vaasWorkerSet.add(vaasWorker)
                 this.recycle({
                     vaasWorker, vaasWorkerSet, 
@@ -145,15 +137,8 @@ export class VaasWorkPool {
             }
             return vaasWorkerSet.next()
         }
-        const workConfig = await this.getWorkConfigByAppName({appName});
-        const vaasWorker = await this.getWorker({
-            appsDir:workConfig.appsDir,
-            appName,
-            version,
-            allowModuleSet:workConfig.allowModuleSet,
-            resourceLimits:workConfig.resourceLimits,
-            recycleTime:workConfig.recycleTime,
-        })
+        const workConfig = await this.getWorkConfigByAppName({appName,version});
+        const vaasWorker = await this.getWorker(workConfig)
         const vaasWorkerSet = new VaasWorkerSet([vaasWorker], workConfig.maxWorkerNum)
         this.recycle({
             vaasWorker, vaasWorkerSet, 
