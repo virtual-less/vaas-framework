@@ -54,11 +54,11 @@ export class VaasWorkPool {
             clearTimeout(recycleTimeId)
         },recycleTime+1)
     }
-    private async getWorker({
+    private getWorker({
         appsDir,appName,version,
         allowModuleSet,recycleTime,resourceLimits,
         useVmLoadDependencies
-    }:WorkerConfig):Promise<VaasWorker> {
+    }:WorkerConfig):VaasWorker {
         const appDirPath = path.join(appsDir,appName, version)
         const worker = new VaasWorker(path.join(__dirname,'worker.js'),{
             appName,
@@ -68,6 +68,10 @@ export class VaasWorkPool {
             recycleTime,
             workerData:{appsDir,appName,appDirPath,allowModuleSet,useVmLoadDependencies}
         })
+        return worker;
+    }
+
+    private async initWorker({appName,worker}:{appName:string,worker:VaasWorker}) {
         return await new Promise((reslove,reject)=>{
             worker.once('message', (message:WorkerMessage)=>{
                 if(message.type!=='init') {
@@ -124,12 +128,14 @@ export class VaasWorkPool {
             appPool = new Map<string,VaasWorkerSet>()
             this.pool.set(appName, appPool)
         }
+        const workConfig = await this.getWorkConfigByAppName({appName,version});
         if(appPool.has(version)) {
             const vaasWorkerSet = appPool.get(version)
             if(vaasWorkerSet.size<vaasWorkerSet.maxSize){
-                const workConfig = await this.getWorkConfigByAppName({appName,version});
-                const vaasWorker = await this.getWorker(workConfig)
+                const vaasWorker = this.getWorker(workConfig)
+                // 添加work和判断work长度中间不能使用await否则非原子操作产生work击穿
                 vaasWorkerSet.add(vaasWorker)
+                await this.initWorker({appName, worker:vaasWorker})
                 this.recycle({
                     vaasWorker, vaasWorkerSet, 
                     appName, version, recycleTime:workConfig.recycleTime
@@ -137,14 +143,15 @@ export class VaasWorkPool {
             }
             return vaasWorkerSet.next()
         }
-        const workConfig = await this.getWorkConfigByAppName({appName,version});
-        const vaasWorker = await this.getWorker(workConfig)
+        const vaasWorker = this.getWorker(workConfig)
         const vaasWorkerSet = new VaasWorkerSet([vaasWorker], workConfig.maxWorkerNum)
+        // 添加work和appPool.has判断中间不能使用await否则非原子操作产生work击穿
+        appPool.set(version, vaasWorkerSet)
+        await this.initWorker({appName, worker:vaasWorker})
         this.recycle({
             vaasWorker, vaasWorkerSet, 
             appName, version, recycleTime: workConfig.recycleTime
         })
-        appPool.set(version, vaasWorkerSet)
         return appPool.get(version).next()
     }
 }
