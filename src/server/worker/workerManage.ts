@@ -22,6 +22,7 @@ export class VaasWorker extends Worker {
     recycleTime:number
     messageStatus:'runing'| null
     isExit:boolean
+    isGenerateRouter:boolean = false
     rootRoutes:Router.IMiddleware
     routes:Router.IMiddleware
     private latestExecuteId:string
@@ -175,7 +176,11 @@ export class VaasWorker extends Worker {
         })
     }
 
-    generateRouter() {
+    generateRouter({prefix}:{prefix:string}) {
+        // 该方法只支持调用一次
+        if(this.isGenerateRouter){return}
+        this.isGenerateRouter = true
+        // 该方法只支持调用一次
         const typeList = ['http', 'websocket']
         const workerRootRouter = new Router()
         for (const [serveName,serveValue] of this.appServerConfigMap) {
@@ -192,7 +197,7 @@ export class VaasWorker extends Worker {
         }
         this.rootRoutes = workerRootRouter.routes()
         const workerRouter = new Router()
-        workerRouter.use(`/${this.appName}`, this.rootRoutes, workerRootRouter.allowedMethods())
+        workerRouter.use(prefix, this.rootRoutes, workerRootRouter.allowedMethods())
         this.routes = workerRouter.routes()
     }
     

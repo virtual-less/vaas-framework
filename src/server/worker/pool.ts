@@ -83,7 +83,6 @@ export class VaasWorkPool {
                     }
                 }
                 worker.appServerConfigMap = message.data.appConfig
-                worker.generateRouter()
                 return reslove(worker)
             });
             worker.once('error', (err)=>{

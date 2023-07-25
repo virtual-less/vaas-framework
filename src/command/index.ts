@@ -32,7 +32,7 @@ function getConfig(configPath) {
         appsDir:defaultAppDir, 
         port:8080, 
         getAppNameByRequest:async (_request)=>{
-            return ''
+            return {appName:'',prefix:'/'}
         }, 
         getAppConfigByAppName:async(_appName)=>{
             return {
@@ -44,7 +44,7 @@ function getConfig(configPath) {
         },
         getByPassFlowVersion:async (_appName)=>{
             // 如果返回空字符串，则直接读取当前目录
-            return ''
+            return {version:''};
         }, 
         showErrorStack:true
     },vaasConfig)

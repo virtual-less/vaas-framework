@@ -24,24 +24,25 @@ async function getServerWorker({
     getByPassFlowVersion:GetByPassFlowVersion,
 }) {
     let urlPath = ctx.path
-    let appName = await getAppNameByRequest(ctx.request)
-    let isRootRoute = true;
+    let {appName, prefix} = await getAppNameByRequest(ctx.request)
+    // 如果未指定App则使用默认path方法指定App
     if(!appName) {
         const matchApp = urlPath.match(/^\/((\w+)\/\w+|(\w+)\/?$)/)
         if(!matchApp) {throw new Error(`不支持该路径(${urlPath})传入`)}
         appName = matchApp[2] || matchApp[3]
-        isRootRoute = false
+        prefix = `/${appName}`;
     }
-    const version = await getByPassFlowVersion(appName)
+    const {version} = await getByPassFlowVersion(appName)
     ctx.appName = appName
     ctx.version = version
     const vaasWorker = await vaasWorkPool.getWokerByAppName({
         appName,
-        version
+        version,
     })
+    vaasWorker.generateRouter({prefix})
     // 这里的操作只是赋值ctx，所以不需要真的next
     const next = ()=>{}
-    if(isRootRoute) {
+    if(!prefix || prefix==='/') {
         // @ts-ignore 
         await vaasWorker.rootRoutes(ctx, next)
     } else {

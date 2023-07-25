@@ -20,7 +20,7 @@ export interface AppConfig {
 }
 
 export interface GetAppNameByRequest {
-  (request:Koa.Request): Promise<string>;
+  (request:Koa.Request): Promise<{appName:string,prefix:string}>;
 }
 
 export interface GetAppConfigByAppName {
@@ -28,7 +28,7 @@ export interface GetAppConfigByAppName {
 }
 
 export interface GetByPassFlowVersion {
-  (appName:string): Promise<string>;
+  (appName:string): Promise<{version:string}>;
 }
 
 export interface VaasConfig {
