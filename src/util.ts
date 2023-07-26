@@ -1,4 +1,5 @@
 import {VaasServerConfigKey} from './server/lib/decorator'
+import {VaasConfig} from './types/server'
 
 export function entryClassMixins(baseClass: any, classItemList: any[]) {
     for (const classItem of classItemList) {
@@ -25,4 +26,9 @@ export function entryClassMixins(baseClass: any, classItemList: any[]) {
       }
     }
     return baseClass
+}
+
+// 仅用来校验vaas.config.js配置的类型检查
+export function validVaasConfig(config:VaasConfig):VaasConfig {
+  return config;
 }
