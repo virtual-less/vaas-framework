@@ -3,11 +3,7 @@ export function outputCatch({showErrorStack}:{showErrorStack:boolean}) {
         try{
             await next()
         } catch(err) {
-            const outputData = {
-                errmsg: err.message || "error",
-                stack: undefined,
-                ...err
-            }
+            const outputData = {...err}
             if(showErrorStack) {
                 outputData.stack = err.stack;
             }
