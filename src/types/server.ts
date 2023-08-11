@@ -274,7 +274,7 @@ export interface  WorkerConfig {
     useVmLoadDependencies:boolean
 }
 
-export type  WorkerMessageType = 'init' | 'error' | 'execute' | 'result'
+export type  WorkerMessageType = 'error' | 'execute' | 'result'
 export interface ExecuteMessageBody {
     appName:string, 
     serveName:string, 
@@ -315,14 +315,15 @@ export interface ErrorMessage {
   data:ErrorMessageBody
 }
 
-export interface InitMessageBody {
+export interface ConfigMessageBody {
   appConfig:Map<string, ServerValue>
 }
 
-export interface InitMessage {
-  type:'init',
-  data:InitMessageBody
+export interface ConfigMessage {
+  type:'config'
+  data?:ConfigMessageBody
 }
 
-export type WorkerMessageBody = ExecuteMessageBody|ResultMessageBody|ErrorMessageBody|InitMessageBody
-export type WorkerMessage = ExecuteMessage|ResultMessage|ErrorMessage|InitMessage
+
+export type WorkerMessageBody = ExecuteMessageBody|ResultMessageBody|ErrorMessageBody|ConfigMessageBody
+export type WorkerMessage = ExecuteMessage|ResultMessage|ErrorMessage|ConfigMessage

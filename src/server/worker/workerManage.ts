@@ -1,7 +1,7 @@
 import {Worker, WorkerOptions} from 'worker_threads'
 import {Buffer} from 'buffer'
 import {convertError2ErrorConfig,convertErrorConfig2Error} from '../lib/error'
-import {WorkerMessage, ServerValue, ExecuteMessageBody, ExecuteMessage, ResultMessage, ErrorMessage} from '../../types/server'
+import {WorkerMessage, ServerValue, ExecuteMessageBody, ExecuteMessage, ResultMessage, ErrorMessage, ConfigMessageBody} from '../../types/server'
 import * as Router from 'koa-router';
 import { Context } from 'koa';
 import { VaasWorkerStream } from './workerStream';
@@ -16,7 +16,7 @@ export class VaasWorker extends Worker {
     appName:string;
     version:string;
     poolInstance:any;
-    appServerConfigMap:Map<string, ServerValue>
+    private appServerConfigMap:Map<string, ServerValue>
     createAt:number
     updateAt:number
     recycleTime:number
@@ -38,17 +38,30 @@ export class VaasWorker extends Worker {
         this.version = options.version
         this.recycleTime = options.recycleTime
         this.poolInstance = options.poolInstance
+        this.doMessage();
     }
 
     private getExecuteEventName(eventName:string):string {
         return `execute-${eventName}`
     }
 
+    private getAppServerConfigMap():Promise<Map<string, ServerValue>> {
+        return new Promise((resolve)=>{
+            if(this.appServerConfigMap){
+                return resolve(this.appServerConfigMap)
+            }
+            this.postMessage({type:'config'})
+            this.once('appConfig', (data:ConfigMessageBody)=>{
+                this.appServerConfigMap = data.appConfig;
+                return resolve(data.appConfig)
+            })
+        })
+    }
+
     private doMessage() {
         if(this.messageStatus ==='runing'){return;}
         this.messageStatus = 'runing'
         const messageFunc = async (message:WorkerMessage) => {
-            if(message.type==='init') {return;}
             if(message.type==='execute') {
                 const executeMessageBody = message.data;
                 try {
@@ -56,7 +69,8 @@ export class VaasWorker extends Worker {
                     if(this.appName!==executeMessageBody.appName) {
                         vaasWorker = await this.poolInstance.getWokerByAppName({appName:executeMessageBody.appName, version:this.version})
                     }
-                    const serverValue = vaasWorker.appServerConfigMap.get(executeMessageBody.serveName)
+                    const appServerConfigMap = await vaasWorker.getAppServerConfigMap()
+                    const serverValue = appServerConfigMap.get(executeMessageBody.serveName)
                     if(serverValue.type!==executeMessageBody.type) {
                         throw new Error(`appName[${executeMessageBody.appName}]'s serveName[${
                             executeMessageBody.serveName
@@ -82,12 +96,14 @@ export class VaasWorker extends Worker {
                     }
                     this.postMessage(errorMessage)
                 }
-            } else {
+            } else if(message.type==='error' || message.type==='result') {
                 const {executeId} = message.data;
                 const messageEvent = this.messageEventMap.get(this.getExecuteEventName(executeId || this.latestExecuteId))
                 if(messageEvent?.callback instanceof Function) {
                     return messageEvent.callback(message)
                 }
+            } else if(message.type==='config') {
+                this.emit('appConfig',message.data)
             }
         }
         this.on('message', messageFunc)
@@ -118,7 +134,6 @@ export class VaasWorker extends Worker {
         }
         this.latestExecuteId = executeId;
         this.postMessage(executeMessage)
-        this.doMessage();
         return new Promise<any>((resolve,reject)=>{
             let isComplete = false
             const messageEventName = this.getExecuteEventName(executeId)
@@ -176,14 +191,15 @@ export class VaasWorker extends Worker {
         })
     }
 
-    generateRouter({prefix}:{prefix:string}) {
+    async generateRouter({prefix}:{prefix:string}) {
         // 该方法只支持调用一次
         if(this.isGenerateRouter){return}
         this.isGenerateRouter = true
         // 该方法只支持调用一次
         const typeList = ['http', 'websocket']
         const workerRootRouter = new Router()
-        for (const [serveName,serveValue] of this.appServerConfigMap) {
+        const appServerConfigMap = await this.getAppServerConfigMap()
+        for (const [serveName,serveValue] of appServerConfigMap) {
             if(!typeList.includes(serveValue.type)) {
                 continue
             }

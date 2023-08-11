@@ -39,7 +39,7 @@ async function getServerWorker({
         appName,
         version,
     })
-    vaasWorker.generateRouter({prefix})
+    await vaasWorker.generateRouter({prefix})
     // 这里的操作只是赋值ctx，所以不需要真的next
     const next = ()=>{}
     if(!prefix || prefix==='/') {

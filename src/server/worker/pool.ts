@@ -71,34 +71,6 @@ export class VaasWorkPool {
         return worker;
     }
 
-    private async initWorker({appName,worker}:{appName:string,worker:VaasWorker}) {
-        return await new Promise((reslove,reject)=>{
-            worker.once('message', (message:WorkerMessage)=>{
-                if(message.type!=='init') {
-                    worker.terminate()
-                    if(message.type==='error') {
-                        return reject(convertErrorConfig2Error({errorConfig:message.data.error}))
-                    } else {
-                        return reject(new Error(`init ${appName} worker failed`))
-                    }
-                }
-                worker.appServerConfigMap = message.data.appConfig
-                return reslove(worker)
-            });
-            worker.once('error', (err)=>{
-                worker.removeAllListeners()
-                worker.terminate()
-                return reject(err)
-            });
-            worker.once('exit', (code) => {
-                worker.isExit = true;
-                worker.removeAllListeners()
-                if (code !== 0)
-                return reject(new Error(`appName[${appName}] Worker stopped with exit code ${code}`));
-            });
-        })
-    }
-
     async getWorkConfigByAppName({appName,version}): Promise<WorkerConfig> {
         const appConfig = await this.getAppConfigByAppName(appName)
         return {
@@ -134,7 +106,6 @@ export class VaasWorkPool {
                 const vaasWorker = this.getWorker(workConfig)
                 // 添加work和判断work长度中间不能使用await否则非原子操作产生work击穿
                 vaasWorkerSet.add(vaasWorker)
-                await this.initWorker({appName, worker:vaasWorker})
                 this.recycle({
                     vaasWorker, vaasWorkerSet, 
                     appName, version, recycleTime:workConfig.recycleTime
@@ -146,7 +117,6 @@ export class VaasWorkPool {
         const vaasWorkerSet = new VaasWorkerSet([vaasWorker], workConfig.maxWorkerNum)
         // 添加work和appPool.has判断中间不能使用await否则非原子操作产生work击穿
         appPool.set(version, vaasWorkerSet)
-        await this.initWorker({appName, worker:vaasWorker})
         this.recycle({
             vaasWorker, vaasWorkerSet, 
             appName, version, recycleTime: workConfig.recycleTime

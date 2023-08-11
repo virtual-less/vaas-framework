@@ -7,7 +7,7 @@ import { Readable, Writable, pipeline } from 'stream';
 
 import {VaasServerConfigKey} from '../lib/decorator'
 import {workerPostMessage} from '../lib/rpc'
-import {WorkerMessage, ExecuteMessageBody} from '../../types/server'
+import {WorkerMessage, ExecuteMessageBody, ServerValue} from '../../types/server'
 import {deprecate} from 'util'
 
 const packageInfo = require('../../../package.json')
@@ -23,7 +23,6 @@ const pipelinePromise = (source: any, destination: NodeJS.WritableStream) => {
 }
 
 export class VaasWorker {
-
     postExecuteMessage({executeMessage, data, isComplete, isStream}:{executeMessage:ExecuteMessageBody,data:any, isComplete:boolean, isStream:boolean}) {
         if(executeMessage.type==='http') {
             workerPostMessage(
@@ -65,11 +64,14 @@ export class VaasWorker {
         const appClass = await this.loadServer()
         const app = new appClass()
         const appConfig = app[VaasServerConfigKey]
-        workerPostMessage(
-            {type:'init',data:{appConfig}}
-        )
         parentPort.on('message', async (message:WorkerMessage) => {
-            if(message.type !=='execute') {return} 
+            if(message.type ==='config') {
+                return workerPostMessage({
+                    type:'config',
+                    data:{appConfig}
+                })
+            }
+            if(message.type !=='execute') {return}
             const executeMessage:ExecuteMessageBody= message.data;
             try {
                 const data = await app[executeMessage.serveName](executeMessage.params)
