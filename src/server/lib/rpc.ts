@@ -18,6 +18,7 @@ export function workerPostMessage(
         const errorMessage:ErrorMessage = {
             type:'error',
             data:{
+                type:value.data.type,
                 error:convertError2ErrorConfig({
                     error
                 })
@@ -27,26 +28,13 @@ export function workerPostMessage(
     }
 }
 
-function getRpcEventName(eventName:string):string {
+export function getRpcEventName(eventName:string):string {
     return `rpc-${eventName}`
 }
 
-const rpcEventMap:Map<string,(message:WorkerMessage)=>void> = new Map()
-let startRpc = false;
+export const rpcEventMap:Map<string,(message:WorkerMessage)=>void> = new Map()
 
 export async function rpcInvote<P,R>(appServerName:string,params:P):Promise<R> {
-    if(!startRpc) {
-        parentPort.on('message', async (message:WorkerMessage) => {
-            if(message.type ==='result' || message.type ==='error') {
-                const callback = rpcEventMap.get(getRpcEventName(message.data.executeId))
-                if(callback instanceof Function) {
-                    return callback(message)
-                }
-            } 
-            
-        })
-    }
-    startRpc = true;
     const appServerNameData = /^(\w+)\.(\w+)$/.exec(appServerName);
     if (!appServerNameData) {
         throw new Error('rpc调用必须按照app.function名方式填写，app和function名称只支持数字字母下划线')

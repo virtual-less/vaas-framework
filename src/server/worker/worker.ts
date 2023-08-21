@@ -6,8 +6,8 @@ import { Readable, Writable, pipeline } from 'stream';
 
 
 import {VaasServerConfigKey} from '../lib/decorator'
-import {workerPostMessage} from '../lib/rpc'
-import {WorkerMessage, ExecuteMessageBody, ServerValue} from '../../types/server'
+import {workerPostMessage, rpcEventMap, getRpcEventName} from '../lib/rpc'
+import {WorkerMessage, ExecuteMessageBody, ServerType} from '../../types/server'
 import {deprecate} from 'util'
 
 const packageInfo = require('../../../package.json')
@@ -22,6 +22,7 @@ const pipelinePromise = (source: any, destination: NodeJS.WritableStream) => {
     })
 }
 
+let lastExecuteType: ServerType = null
 export class VaasWorker {
     postExecuteMessage({executeMessage, data, isComplete, isStream}:{executeMessage:ExecuteMessageBody,data:any, isComplete:boolean, isStream:boolean}) {
         if(executeMessage.type==='http') {
@@ -29,15 +30,15 @@ export class VaasWorker {
                 {
                     type:'result',
                     data:{
-                    result:{
-                        isComplete,
-                        isStream,
-                        outRequestConfig:executeMessage.params.req, 
-                        outResponseConfig:executeMessage.params.res, 
-                        data
-                    },
-                    type:executeMessage.type,
-                    executeId:executeMessage.executeId
+                        result:{
+                            isComplete,
+                            isStream,
+                            outRequestConfig:executeMessage.params.req, 
+                            outResponseConfig:executeMessage.params.res, 
+                            data
+                        },
+                        type:executeMessage.type,
+                        executeId:executeMessage.executeId
                     }
                 }
             )
@@ -68,11 +69,21 @@ export class VaasWorker {
             if(message.type ==='config') {
                 return workerPostMessage({
                     type:'config',
-                    data:{appConfig}
+                    data:{
+                        type:message.data.type,
+                        appConfig
+                    }
                 })
+            }
+            if(message.type ==='result' || message.type ==='error') {
+                const callback = rpcEventMap.get(getRpcEventName(message.data.executeId))
+                if(callback instanceof Function) {
+                    return callback(message)
+                }
             }
             if(message.type !=='execute') {return}
             const executeMessage:ExecuteMessageBody= message.data;
+            lastExecuteType = executeMessage.type
             try {
                 const data = await app[executeMessage.serveName](executeMessage.params)
                 if(data instanceof Readable) {
@@ -89,7 +100,14 @@ export class VaasWorker {
                 }
             } catch(error) {
                 workerPostMessage(
-                    {type:'error',data:{error,executeId:executeMessage.executeId}}
+                    {
+                        type:'error',
+                        data:{
+                            type:executeMessage.type,
+                            error,
+                            executeId:executeMessage.executeId
+                        }
+                    }
                 )
             }
         })
@@ -184,18 +202,36 @@ export class VaasWorker {
 
 new VaasWorker().run().catch((error)=>{
     workerPostMessage(
-        {type:'error', data:{error}}
+        {
+            type:'error', 
+            data:{
+                type:lastExecuteType,
+                error
+            }
+        }
     )
 })
 
 process.on('uncaughtException', (error) => {
     workerPostMessage(
-        {type:'error', data:{error}},
+        {
+            type:'error', 
+            data:{
+                type:lastExecuteType,
+                error
+            }
+        },
     )
 })
 
 process.on('unhandledRejection', (error) => {
     workerPostMessage(
-        {type:'error', data:{error}}
+        {
+            type:'error', 
+            data:{
+                type:lastExecuteType,
+                error
+            }
+        }
     )
 })

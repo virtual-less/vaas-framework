@@ -308,6 +308,7 @@ export interface ResultMessage {
 // todo 要将error类型改为Error，并批量处理Error与ErrorConfig的转换
 export interface ErrorMessageBody {
   executeId?:string,
+  type:ServerType,
   error:any
 }
 export interface ErrorMessage {
@@ -316,12 +317,13 @@ export interface ErrorMessage {
 }
 
 export interface ConfigMessageBody {
-  appConfig:Map<string, ServerValue>
+  type:ServerType,
+  appConfig?:Map<string, ServerValue>
 }
 
 export interface ConfigMessage {
   type:'config'
-  data?:ConfigMessageBody
+  data:ConfigMessageBody
 }
 
 

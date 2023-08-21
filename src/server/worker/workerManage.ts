@@ -1,7 +1,11 @@
 import {Worker, WorkerOptions} from 'worker_threads'
 import {Buffer} from 'buffer'
 import {convertError2ErrorConfig,convertErrorConfig2Error} from '../lib/error'
-import {WorkerMessage, ServerValue, ExecuteMessageBody, ExecuteMessage, ResultMessage, ErrorMessage, ConfigMessageBody} from '../../types/server'
+import {
+    WorkerMessage, ServerValue, ExecuteMessageBody, 
+    ExecuteMessage, ResultMessage, ErrorMessage, 
+    ConfigMessage, ConfigMessageBody
+} from '../../types/server'
 import * as Router from 'koa-router';
 import { Context } from 'koa';
 import { VaasWorkerStream } from './workerStream';
@@ -50,7 +54,8 @@ export class VaasWorker extends Worker {
             if(this.appServerConfigMap){
                 return resolve(this.appServerConfigMap)
             }
-            this.postMessage({type:'config'})
+            const initConfigMessage:ConfigMessage={type:'config',data:{type:'http'}}
+            this.postMessage(initConfigMessage)
             this.once('appConfig', (data:ConfigMessageBody)=>{
                 this.appServerConfigMap = data.appConfig;
                 return resolve(data.appConfig)
@@ -90,6 +95,7 @@ export class VaasWorker extends Worker {
                     const errorMessage:ErrorMessage = {
                         type:'error',
                         data:{
+                            type:executeMessageBody.type,
                             executeId:executeMessageBody.executeId,
                             error:convertError2ErrorConfig({error})
                         }
