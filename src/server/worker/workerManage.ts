@@ -56,17 +56,18 @@ export class VaasWorker extends Worker {
             }
             const initConfigMessage:ConfigMessage={type:'config',data:{type:'http'}}
             let initTimout = true;
-            this.once('appConfig', (data:ConfigMessageBody)=>{
-                this.appServerConfigMap = data.appConfig;
-                initTimout = false;
-                return resolve(data.appConfig)
-            })
-            this.postMessage(initConfigMessage)
-            setTimeout(()=>{
+            const initTimeHander = setTimeout(()=>{
                 if(initTimout) {
                     return reject(new Error('初始化超时'))
                 }
             },this.recycleTime)
+            this.once('appConfig', (data:ConfigMessageBody)=>{
+                this.appServerConfigMap = data.appConfig;
+                initTimout = false;
+                clearTimeout(initTimeHander)
+                return resolve(data.appConfig)
+            })
+            this.postMessage(initConfigMessage)
         })
     }
 
