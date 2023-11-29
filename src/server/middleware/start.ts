@@ -148,20 +148,22 @@ export function httpStart({
         if(!ctx.serveName) {
             throw new Error(`this App(${ctx.appName}) not path has matched[${ctx.path}]`)
         }
-        const intoRequestConfig = Request.getRequestConfigByRequest(ctx.request)
-        intoRequestConfig.params = ctx.params
-        const intoResponseConfig = Response.getResponseConfigByResponse(ctx.response)
+        ctx.requestConfig = Request.getRequestConfigByRequest(ctx.request)
+        ctx.requestConfig.params = ctx.params
+        ctx.responseConfig = Response.getResponseConfigByResponse(ctx.response)
         const {outRequestConfig, outResponseConfig, data, isStream, stream} = await vaasWorker.execute({
             appName:ctx.appName,
             serveName:ctx.serveName,
             executeId:uuidv4(),
             type:ctx.serveValue.type,
             params:{
-                req:intoRequestConfig, 
-                res:intoResponseConfig
+                req:ctx.requestConfig, 
+                res:ctx.responseConfig
             }
             
         })
+        ctx.requestConfig = outRequestConfig;
+        ctx.responseConfig = outResponseConfig;
         Request.mergeRequestConfig2Request({request: ctx.request, requestConfig: outRequestConfig})
         Response.mergeResponseConfig2Response({response: ctx.response, responseConfig: outResponseConfig})
         

@@ -50,16 +50,23 @@ export class VaasWorker extends Worker {
     }
 
     private getAppServerConfigMap():Promise<Map<string, ServerValue>> {
-        return new Promise((resolve)=>{
+        return new Promise((resolve,reject)=>{
             if(this.appServerConfigMap){
                 return resolve(this.appServerConfigMap)
             }
             const initConfigMessage:ConfigMessage={type:'config',data:{type:'http'}}
-            this.postMessage(initConfigMessage)
+            let initTimout = true;
             this.once('appConfig', (data:ConfigMessageBody)=>{
                 this.appServerConfigMap = data.appConfig;
+                initTimout = false;
                 return resolve(data.appConfig)
             })
+            this.postMessage(initConfigMessage)
+            setTimeout(()=>{
+                if(initTimout) {
+                    return reject(new Error('初始化超时'))
+                }
+            },this.recycleTime)
         })
     }
 
@@ -200,7 +207,6 @@ export class VaasWorker extends Worker {
     async generateRouter({prefix}:{prefix:string}) {
         // 该方法只支持调用一次
         if(this.isGenerateRouter){return}
-        this.isGenerateRouter = true
         // 该方法只支持调用一次
         const typeList = ['http', 'websocket']
         const workerRootRouter = new Router()
@@ -221,6 +227,7 @@ export class VaasWorker extends Worker {
         const workerRouter = new Router()
         workerRouter.use(prefix, this.rootRoutes, workerRootRouter.allowedMethods())
         this.routes = workerRouter.routes()
+        this.isGenerateRouter = true
     }
     
     recyclable() {

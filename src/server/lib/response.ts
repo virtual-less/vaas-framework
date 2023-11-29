@@ -6,7 +6,7 @@ export class Response extends HttpBase {
     static getResponseConfigByResponse(response:Koa.Response):ResponseConfig {
         return {
             headers: {},
-            status: 200,
+            status: undefined,
             message: undefined,
             length: undefined,
             type: undefined,
