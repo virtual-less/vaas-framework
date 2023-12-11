@@ -1,28 +1,29 @@
 export class VaasWorkerStream {
-    private callback:(chunk:Buffer)=>void
-    private completeCallback:()=>void
-    write(chunk:Buffer) {
-        // 防止未添加callback就运行
-        setImmediate(()=>{
-            this.callback(chunk)
-        })
-    }
-    writeComplete() {
-        // 防止completeCallback快于callback
-        setImmediate(() => {
-            this.completeCallback()
-        })
-    }
+  private callback: (chunk: Buffer) => void
+  private completeCallback: () => void
+  write (chunk: Buffer) {
+    // 防止未添加callback就运行
+    setImmediate(() => {
+      this.callback(chunk)
+    })
+  }
 
-    addWriteCallBack(callback:(chunk:Buffer)=>void) {
-        this.callback = callback
-    }
+  writeComplete () {
+    // 防止completeCallback快于callback
+    setImmediate(() => {
+      this.completeCallback()
+    })
+  }
 
-    waitWriteComplete() {
-        return new Promise((resolve)=>{
-            this.completeCallback = ()=>{
-                resolve(true)
-            }
-        }) 
-    }
+  addWriteCallBack (callback: (chunk: Buffer) => void) {
+    this.callback = callback
+  }
+
+  async waitWriteComplete () {
+    return await new Promise((resolve) => {
+      this.completeCallback = () => {
+        resolve(true)
+      }
+    })
+  }
 }
