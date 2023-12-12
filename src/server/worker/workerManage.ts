@@ -20,15 +20,14 @@ export class VaasWorker extends Worker {
   appName: string
   version: string
   poolInstance: any
-  private appServerConfigMap: Map<string, ServerValue>
+  appServerConfigMap: Map<string, ServerValue>
   createAt: number
   updateAt: number
   recycleTime: number
   messageStatus: 'runing' | null
   isExit: boolean
-  isGenerateRouter: boolean = false
   rootRoutes: Router.IMiddleware
-  routes: Router.IMiddleware
+  routesMap: NodeJS.Dict<Router.IMiddleware> = {}
   private latestExecuteId: string
   private readonly messageEventMap = new Map<string, {
     info: NodeJS.Dict<any>
@@ -50,7 +49,7 @@ export class VaasWorker extends Worker {
     return `execute-${eventName}`
   }
 
-  private async getAppServerConfigMap (): Promise<Map<string, ServerValue>> {
+  async getAppServerConfigMap (): Promise<Map<string, ServerValue>> {
     return await new Promise((resolve, reject) => {
       if (this.appServerConfigMap) {
         resolve(this.appServerConfigMap); return
@@ -79,10 +78,7 @@ export class VaasWorker extends Worker {
       if (message.type === 'execute') {
         const executeMessageBody = message.data
         try {
-          let vaasWorker = this
-          if (this.appName !== executeMessageBody.appName) {
-            vaasWorker = await this.poolInstance.getWokerByAppName({ appName: executeMessageBody.appName, version: this.version })
-          }
+          const vaasWorker = await this.poolInstance.getWokerByAppName({ appName: executeMessageBody.appName, version: this.version })
           const appServerConfigMap = await vaasWorker.getAppServerConfigMap()
           const serverValue = appServerConfigMap.get(executeMessageBody.serveName)
           if (serverValue.type !== executeMessageBody.type) {
@@ -206,10 +202,10 @@ export class VaasWorker extends Worker {
     })
   }
 
-  async generateRouter ({ prefix }: { prefix: string }) {
-    // 该方法只支持调用一次
-    if (this.isGenerateRouter) { return }
-    // 该方法只支持调用一次
+  async generateRootRouter () {
+    if (this.rootRoutes) {
+      return this.rootRoutes
+    }
     const typeList = ['http', 'websocket']
     const workerRootRouter = new Router()
     const appServerConfigMap = await this.getAppServerConfigMap()
@@ -226,10 +222,16 @@ export class VaasWorker extends Worker {
       workerRootRouter[method](routerName, middleware)
     }
     this.rootRoutes = workerRootRouter.routes()
+    return this.rootRoutes
+  }
+
+  async generateRouter ({ prefix }: { prefix: string }) {
+    // 该方法只支持调用一次
+    if (this.routesMap[prefix]) { return this.routesMap[prefix] }
     const workerRouter = new Router()
-    workerRouter.use(prefix, this.rootRoutes, workerRootRouter.allowedMethods())
-    this.routes = workerRouter.routes()
-    this.isGenerateRouter = true
+    workerRouter.use(prefix, this.rootRoutes, workerRouter.allowedMethods())
+    this.routesMap[prefix] = workerRouter.routes()
+    return this.routesMap[prefix]
   }
 
   recyclable () {

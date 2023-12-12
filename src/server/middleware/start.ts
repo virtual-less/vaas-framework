@@ -44,7 +44,7 @@ async function getServerWorker ({
     await vaasWorker.rootRoutes(ctx, next)
   } else {
     // @ts-expect-error
-    await vaasWorker.routes(ctx, next)
+    await vaasWorker.routesMap[prefix](ctx, next)
   }
   return vaasWorker
 }
