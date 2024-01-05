@@ -34,6 +34,7 @@ export interface VaasConfig {
     getAppNameByRequest:GetAppNameByRequest, 
     getAppConfigByAppName:GetAppConfigByAppName,
     showErrorStack:boolean
+    isPrepareWorker:boolean
 }
 ```
 * type GetAppNameByRequest
