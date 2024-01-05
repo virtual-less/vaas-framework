@@ -1,13 +1,12 @@
 import { Worker, type WorkerOptions } from 'worker_threads'
 import { Buffer } from 'buffer'
+import { type Context } from 'koa'
 import { convertError2ErrorConfig, convertErrorConfig2Error } from '../lib/error'
 import {
   type WorkerMessage, type ServerValue, type ExecuteMessageBody,
   type ExecuteMessage, type ResultMessage, type ErrorMessage,
   type ConfigMessage, type ConfigMessageBody
 } from '../../types/server'
-import * as Router from 'koa-router'
-import { type Context } from 'koa'
 import { VaasWorkerStream } from './workerStream'
 interface VaasWorkerOptions extends WorkerOptions {
   appName: string
@@ -21,13 +20,12 @@ export class VaasWorker extends Worker {
   version: string
   poolInstance: any
   appServerConfigMap: Map<string, ServerValue>
+  routerMiddleware: (ctx: Context) => Promise<void>
   createAt: number
   updateAt: number
   recycleTime: number
   messageStatus: 'runing' | null
   isExit: boolean
-  rootRoutes: Router.IMiddleware
-  routesMap: NodeJS.Dict<Router.IMiddleware> = {}
   private latestExecuteId: string
   private readonly messageEventMap = new Map<string, {
     info: NodeJS.Dict<any>
@@ -200,38 +198,6 @@ export class VaasWorker extends Worker {
         }
       })
     })
-  }
-
-  async generateRootRouter () {
-    if (this.rootRoutes) {
-      return this.rootRoutes
-    }
-    const typeList = ['http', 'websocket']
-    const workerRootRouter = new Router()
-    const appServerConfigMap = await this.getAppServerConfigMap()
-    for (const [serveName, serveValue] of appServerConfigMap) {
-      if (!typeList.includes(serveValue.type)) {
-        continue
-      }
-      const middleware = async (ctx: Context) => {
-        ctx.serveName = serveName
-        ctx.serveValue = serveValue
-      }
-      const method = serveValue.method || 'all'
-      const routerName = serveValue.routerName || `/${serveName}`
-      workerRootRouter[method](routerName, middleware)
-    }
-    this.rootRoutes = workerRootRouter.routes()
-    return this.rootRoutes
-  }
-
-  async generateRouter ({ prefix }: { prefix: string }) {
-    // 该方法只支持调用一次
-    if (this.routesMap[prefix]) { return this.routesMap[prefix] }
-    const workerRouter = new Router()
-    workerRouter.use(prefix, this.rootRoutes, workerRouter.allowedMethods())
-    this.routesMap[prefix] = workerRouter.routes()
-    return this.routesMap[prefix]
   }
 
   recyclable () {

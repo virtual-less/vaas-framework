@@ -14,12 +14,17 @@ export class VaasServer {
     getAppNameByRequest,
     getAppConfigByAppName,
     getByPassFlowVersion,
-    showErrorStack
+    showErrorStack,
+    isPrepareWorker
   }: VaasConfig): Promise<Koa> {
     const vaasWorkPool = new VaasWorkPool({
       appsDir,
-      getAppConfigByAppName
+      getAppConfigByAppName,
+      getByPassFlowVersion
     })
+    if (isPrepareWorker) {
+      await vaasWorkPool.prepareWorker()
+    }
     const app = new Koa()
     app.use(outputCatch({ showErrorStack }))
     app.use(KoaBodyparser({

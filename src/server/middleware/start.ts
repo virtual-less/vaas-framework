@@ -20,14 +20,10 @@ async function getServerWorker ({
   getAppNameByRequest: GetAppNameByRequest
   getByPassFlowVersion: GetByPassFlowVersion
 }) {
-  const urlPath = ctx.path
-  let { appName, prefix } = await getAppNameByRequest(ctx.request)
+  let { appName } = await getAppNameByRequest(ctx.request)
   // 如果未指定App则使用默认path方法指定App
   if (!appName) {
-    const matchApp = urlPath.match(/^\/((\w+)\/\w+|(\w+)\/?$)/)
-    if (!matchApp) { throw new Error(`不支持该路径(${urlPath})传入`) }
-    appName = matchApp[2] || matchApp[3]
-    prefix = `/${appName}`
+    appName = ctx.path.split('/')[1]
   }
   const { version } = await getByPassFlowVersion(appName)
   ctx.appName = appName
@@ -36,16 +32,7 @@ async function getServerWorker ({
     appName,
     version
   })
-  await vaasWorker.generateRouter({ prefix })
-  // 这里的操作只是赋值ctx，所以不需要真的next
-  const next = () => {}
-  if (!prefix || prefix === '/') {
-    // @ts-expect-error
-    await vaasWorker.rootRoutes(ctx, next)
-  } else {
-    // @ts-expect-error
-    await vaasWorker.routesMap[prefix](ctx, next)
-  }
+  await vaasWorker.routerMiddleware(ctx)
   return vaasWorker
 }
 

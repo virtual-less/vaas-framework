@@ -46,7 +46,8 @@ function getConfig (configPath) {
       // 如果返回空字符串，则直接读取当前目录
       return { version: '' }
     },
-    showErrorStack: true
+    showErrorStack: true,
+    isPrepareWorker: true
   }, vaasConfig)
   return finalyConfig
 }

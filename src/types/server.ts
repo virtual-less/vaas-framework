@@ -19,7 +19,7 @@ export interface AppConfig {
   useVmLoadDependencies: boolean
 }
 
-export type GetAppNameByRequest = (request: Koa.Request) => Promise<{ appName: string, prefix: string }>
+export type GetAppNameByRequest = (request: Koa.Request) => Promise<{ appName: string }>
 
 export type GetAppConfigByAppName = (appName: string) => Promise<AppConfig>
 
@@ -32,6 +32,7 @@ export interface VaasConfig {
   getAppConfigByAppName: GetAppConfigByAppName
   getByPassFlowVersion: GetByPassFlowVersion
   showErrorStack: boolean
+  isPrepareWorker: boolean
 }
 
 export interface RequestConfig {

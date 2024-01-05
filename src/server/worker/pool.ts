@@ -1,33 +1,50 @@
 import * as path from 'path'
+import * as fsPromises from 'fs/promises'
+import { type Context } from 'koa'
 // import { convertErrorConfig2Error } from '../lib/error'
-import { type GetAppConfigByAppName, type WorkerConfig, type ServerValue } from '../../types/server'
+import { type GetAppConfigByAppName, type GetByPassFlowVersion, type WorkerConfig, type ServerValue } from '../../types/server'
 import { VaasWorker, VaasWorkerSet } from './workerManage'
-import type * as Router from 'koa-router'
-
+import { Route } from '../route/index'
 interface AppPool {
   vaasWorkerSet: VaasWorkerSet
   appServerConfigMap: Map<string, ServerValue>
-  rootRoutes: Router.IMiddleware
+  routerMiddleware: (ctx: Context) => Promise<void>
 }
 export class VaasWorkPool {
   pool: Map<string, Map<string, AppPool>> = new Map<string, Map<string, AppPool>>()
   workerRecycleCheckTime: number
   appsDir: string
   getAppConfigByAppName: GetAppConfigByAppName
+  getByPassFlowVersion: GetByPassFlowVersion
   static instance: VaasWorkPool = null
   constructor ({
     appsDir,
-    getAppConfigByAppName
+    getAppConfigByAppName,
+    getByPassFlowVersion
   }: {
     appsDir: string
     getAppConfigByAppName: GetAppConfigByAppName
+    getByPassFlowVersion: GetByPassFlowVersion
   }) {
     if (VaasWorkPool.instance) {
       return VaasWorkPool.instance
     }
     VaasWorkPool.instance = this
     this.getAppConfigByAppName = getAppConfigByAppName
+    this.getByPassFlowVersion = getByPassFlowVersion
     this.appsDir = appsDir
+  }
+
+  async prepareWorker () {
+    const appNameList = await fsPromises.readdir(this.appsDir)
+    for (const appName of appNameList) {
+      if (['.', '..'].includes(appName)) { continue }
+      const { version } = await this.getByPassFlowVersion(appName)
+      await this.getWokerByAppName({
+        appName,
+        version
+      })
+    }
   }
 
   private recycle ({
@@ -107,14 +124,14 @@ export class VaasWorkPool {
     }
     const workConfig = await this.getWorkConfigByAppName({ appName, version })
     if (appPool.has(version)) {
-      const { vaasWorkerSet, appServerConfigMap, rootRoutes } = appPool.get(version)
+      const { vaasWorkerSet, appServerConfigMap, routerMiddleware } = appPool.get(version)
       if (vaasWorkerSet.size < vaasWorkerSet.maxSize) {
         const vaasWorker = this.getWorker(workConfig)
         if (!vaasWorker.appServerConfigMap) {
           vaasWorker.appServerConfigMap = appServerConfigMap
         }
-        if (!vaasWorker.rootRoutes) {
-          vaasWorker.rootRoutes = rootRoutes
+        if (!vaasWorker.routerMiddleware) {
+          vaasWorker.routerMiddleware = routerMiddleware
         }
         // 添加work和判断work长度中间不能使用await否则非原子操作产生work击穿
         vaasWorkerSet.add(vaasWorker)
@@ -130,11 +147,13 @@ export class VaasWorkPool {
     }
     const vaasWorker = this.getWorker(workConfig)
     const appServerConfigMap = await vaasWorker.getAppServerConfigMap()
-    const rootRoutes = await vaasWorker.generateRootRouter()
+    const route = new Route({ appServerConfigMap })
+    const routerMiddleware = route.getRouterMiddleware()
     vaasWorker.appServerConfigMap = appServerConfigMap
+    vaasWorker.routerMiddleware = routerMiddleware
     const vaasWorkerSet = new VaasWorkerSet([vaasWorker], workConfig.maxWorkerNum)
     // 添加work和appPool.has判断中间不能使用await否则非原子操作产生work击穿
-    appPool.set(version, { vaasWorkerSet, appServerConfigMap, rootRoutes })
+    appPool.set(version, { vaasWorkerSet, appServerConfigMap, routerMiddleware })
     this.recycle({
       vaasWorker,
       vaasWorkerSet,
