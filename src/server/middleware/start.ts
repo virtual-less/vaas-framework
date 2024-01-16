@@ -20,10 +20,11 @@ async function getServerWorker ({
   getAppNameByRequest: GetAppNameByRequest
   getByPassFlowVersion: GetByPassFlowVersion
 }) {
-  let { appName } = await getAppNameByRequest(ctx.request)
+  let { appName, prefix } = await getAppNameByRequest(ctx.request)
   // 如果未指定App则使用默认path方法指定App
   if (!appName) {
     appName = ctx.path.split('/')[1]
+    prefix = `/${appName}`
   }
   const { version } = await getByPassFlowVersion(appName)
   ctx.appName = appName
@@ -33,6 +34,10 @@ async function getServerWorker ({
     version
   })
   await vaasWorker.routerMiddleware(ctx)
+  const nowPrefix = `/${ctx.params.prefix || ''}`
+  if (prefix !== nowPrefix) {
+    throw new Error(`this App(${ctx.appName})'s prefix(${prefix}) not matched now prefix(${nowPrefix})`)
+  }
   return vaasWorker
 }
 
