@@ -127,6 +127,7 @@ export class VaasWorkPool {
       const { vaasWorkerSet, appServerConfigMap, routerMiddleware } = appPool.get(version)
       if (vaasWorkerSet.size < vaasWorkerSet.maxSize) {
         const vaasWorker = this.getWorker(workConfig)
+        await vaasWorker.init()
         if (!vaasWorker.appServerConfigMap) {
           vaasWorker.appServerConfigMap = appServerConfigMap
         }
@@ -146,7 +147,8 @@ export class VaasWorkPool {
       return vaasWorkerSet.next()
     }
     const vaasWorker = this.getWorker(workConfig)
-    const appServerConfigMap = await vaasWorker.getAppServerConfigMap()
+    await vaasWorker.init()
+    const appServerConfigMap = vaasWorker.appServerConfigMap
     const route = new Route({ appServerConfigMap })
     const routerMiddleware = route.getRouterMiddleware()
     vaasWorker.appServerConfigMap = appServerConfigMap

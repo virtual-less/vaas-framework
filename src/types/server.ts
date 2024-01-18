@@ -268,7 +268,14 @@ export interface WorkerConfig {
   useVmLoadDependencies: boolean
 }
 
-export type WorkerMessageType = 'error' | 'execute' | 'result'
+export enum WorkerMessageType {
+  error = 'error',
+  execute = 'execute',
+  result = 'result',
+  init = 'init',
+  crash = 'crash',
+}
+
 export interface ExecuteMessageBody {
   appName: string
   serveName: string
@@ -278,7 +285,7 @@ export interface ExecuteMessageBody {
 }
 
 export interface ExecuteMessage {
-  type: 'execute'
+  type: WorkerMessageType.execute
   data: ExecuteMessageBody
 }
 
@@ -295,7 +302,7 @@ export interface ResultMessageBody {
 }
 
 export interface ResultMessage {
-  type: 'result'
+  type: WorkerMessageType.result
   data: ResultMessageBody
 }
 
@@ -306,19 +313,18 @@ export interface ErrorMessageBody {
   error: any
 }
 export interface ErrorMessage {
-  type: 'error'
+  type: WorkerMessageType.error
   data: ErrorMessageBody
 }
 
-export interface ConfigMessageBody {
-  type: ServerType
+export interface InitMessageBody {
   appConfig?: Map<string, ServerValue>
 }
 
-export interface ConfigMessage {
-  type: 'config'
-  data: ConfigMessageBody
+export interface InitMessage {
+  type: WorkerMessageType.init
+  data: InitMessageBody
 }
 
-export type WorkerMessageBody = ExecuteMessageBody | ResultMessageBody | ErrorMessageBody | ConfigMessageBody
-export type WorkerMessage = ExecuteMessage | ResultMessage | ErrorMessage | ConfigMessage
+export type WorkerMessageBody = ExecuteMessageBody | ResultMessageBody | ErrorMessageBody | InitMessageBody
+export type WorkerMessage = ExecuteMessage | ResultMessage | ErrorMessage | InitMessage

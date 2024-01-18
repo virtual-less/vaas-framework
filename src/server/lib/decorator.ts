@@ -1,14 +1,17 @@
 import { type ServerValue } from '../../types/server'
+import 'reflect-metadata'
 
-export const VaasServerConfigKey = '__appConfig' // vm环境和worker环境上下文不一致导致不能使用Symbol
 export function VaasServer (vaasServer: ServerValue = { type: 'http' }) {
   return function (target: any, propertyKey: string, _descriptor: PropertyDescriptor) {
-    if (!target[VaasServerConfigKey]) {
-      target[VaasServerConfigKey] = new Map<string, ServerValue>()
-    }
-    target[VaasServerConfigKey].set(
-      propertyKey,
-      vaasServer
-    )
+    Reflect.defineMetadata(propertyKey, vaasServer, target)
   }
+}
+
+export function getVaasServerMap (target: any) {
+  const vaasServerMap = new Map<string, ServerValue>()
+  const propertyKeyList = Reflect.getMetadataKeys(target)
+  for (const propertyKey of propertyKeyList) {
+    vaasServerMap.set(propertyKey, Reflect.getMetadata(propertyKey, target))
+  }
+  return vaasServerMap
 }

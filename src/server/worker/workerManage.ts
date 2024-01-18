@@ -5,7 +5,7 @@ import { convertError2ErrorConfig, convertErrorConfig2Error } from '../lib/error
 import {
   type WorkerMessage, type ServerValue, type ExecuteMessageBody,
   type ExecuteMessage, type ResultMessage, type ErrorMessage,
-  type ConfigMessage, type ConfigMessageBody
+  WorkerMessageType
 } from '../../types/server'
 import { VaasWorkerStream } from './workerStream'
 interface VaasWorkerOptions extends WorkerOptions {
@@ -40,82 +40,69 @@ export class VaasWorker extends Worker {
     this.version = options.version
     this.recycleTime = options.recycleTime
     this.poolInstance = options.poolInstance
-    this.doMessage()
+  }
+
+  async init () {
+    await this.doMessage()
   }
 
   private getExecuteEventName (eventName: string): string {
     return `execute-${eventName}`
   }
 
-  async getAppServerConfigMap (): Promise<Map<string, ServerValue>> {
-    return await new Promise((resolve, reject) => {
-      if (this.appServerConfigMap) {
-        resolve(this.appServerConfigMap); return
-      }
-      const initConfigMessage: ConfigMessage = { type: 'config', data: { type: 'http' } }
-      let initTimout = true
-      const initTimeHander = setTimeout(() => {
-        if (initTimout) {
-          reject(new Error('初始化超时'))
-        }
-      }, this.recycleTime)
-      this.once('appConfig', (data: ConfigMessageBody) => {
-        this.appServerConfigMap = data.appConfig
-        initTimout = false
-        clearTimeout(initTimeHander)
-        resolve(data.appConfig)
-      })
-      this.postMessage(initConfigMessage)
-    })
-  }
-
-  private doMessage () {
+  private async doMessage () {
     if (this.messageStatus === 'runing') { return }
     this.messageStatus = 'runing'
-    const messageFunc = async (message: WorkerMessage) => {
-      if (message.type === 'execute') {
-        const executeMessageBody = message.data
-        try {
-          const vaasWorker = await this.poolInstance.getWokerByAppName({ appName: executeMessageBody.appName, version: this.version })
-          const appServerConfigMap = await vaasWorker.getAppServerConfigMap()
-          const serverValue = appServerConfigMap.get(executeMessageBody.serveName)
-          if (serverValue.type !== executeMessageBody.type) {
-            throw new Error(`appName[${executeMessageBody.appName}]'s serveName[${
-                            executeMessageBody.serveName
-                        }] not matched type[${executeMessageBody.type}]`)
-          }
-          const result = await vaasWorker.execute(executeMessageBody)
-          const resultMessage: ResultMessage = {
-            type: 'result',
-            data: {
-              executeId: executeMessageBody.executeId,
-              type: executeMessageBody.type,
-              result
+    return await new Promise((resolve, reject) => {
+      const messageFunc = async (message: WorkerMessage) => {
+        if (message.type === 'execute') {
+          const executeMessageBody = message.data
+          try {
+            const vaasWorker: VaasWorker = await this.poolInstance.getWokerByAppName({ appName: executeMessageBody.appName, version: this.version })
+            const appServerConfigMap = vaasWorker.appServerConfigMap
+            const serverValue = appServerConfigMap.get(executeMessageBody.serveName)
+            if (serverValue.type !== executeMessageBody.type) {
+              throw new Error(`appName[${executeMessageBody.appName}]'s serveName[${
+                              executeMessageBody.serveName
+                          }] not matched type[${executeMessageBody.type}]`)
             }
-          }
-          this.postMessage(resultMessage)
-        } catch (error) {
-          const errorMessage: ErrorMessage = {
-            type: 'error',
-            data: {
-              type: executeMessageBody.type,
-              executeId: executeMessageBody.executeId,
-              error: convertError2ErrorConfig({ error })
+            const result = await vaasWorker.execute(executeMessageBody)
+            const resultMessage: ResultMessage = {
+              type: WorkerMessageType.result,
+              data: {
+                executeId: executeMessageBody.executeId,
+                type: executeMessageBody.type,
+                result
+              }
             }
+            this.postMessage(resultMessage)
+          } catch (error) {
+            const errorMessage: ErrorMessage = {
+              type: WorkerMessageType.error,
+              data: {
+                type: executeMessageBody.type,
+                executeId: executeMessageBody.executeId,
+                error: convertError2ErrorConfig({ error })
+              }
+            }
+            this.postMessage(errorMessage)
           }
-          this.postMessage(errorMessage)
+        } else if (message.type === WorkerMessageType.error || message.type === WorkerMessageType.result) {
+          const { executeId } = message.data
+          const messageEvent = this.messageEventMap.get(this.getExecuteEventName(executeId || this.latestExecuteId))
+          if (messageEvent?.callback instanceof Function) {
+            messageEvent.callback(message)
+          }
+          if (message.type === WorkerMessageType.error) {
+            reject(convertErrorConfig2Error({ errorConfig: message.data.error }))
+          }
+        } else if (message.type === WorkerMessageType.init) {
+          this.appServerConfigMap = message.data.appConfig
+          resolve(message.data.appConfig)
         }
-      } else if (message.type === 'error' || message.type === 'result') {
-        const { executeId } = message.data
-        const messageEvent = this.messageEventMap.get(this.getExecuteEventName(executeId || this.latestExecuteId))
-        if (messageEvent?.callback instanceof Function) {
-          messageEvent.callback(message)
-        }
-      } else if (message.type === 'config') {
-        this.emit('appConfig', message.data)
       }
-    }
-    this.on('message', messageFunc)
+      this.on('message', messageFunc)
+    })
   }
 
   async execute ({ appName, serveName, executeId, type, params }: ExecuteMessageBody): Promise<any> {
@@ -132,7 +119,7 @@ export class VaasWorker extends Worker {
     }
     this.updateAt = Date.now()
     const executeMessage: ExecuteMessage = {
-      type: 'execute',
+      type: WorkerMessageType.execute,
       data: {
         type,
         appName,

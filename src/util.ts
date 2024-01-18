@@ -1,4 +1,4 @@
-import { VaasServerConfigKey } from './server/lib/decorator'
+import { getVaasServerMap } from './server/lib/decorator'
 import { type VaasConfig } from './types/server'
 
 export function entryClassMixins (baseClass: any, classItemList: any[]) {
@@ -6,10 +6,12 @@ export function entryClassMixins (baseClass: any, classItemList: any[]) {
     const funcNameList = Object.getOwnPropertyNames(classItem.prototype)
     for (const funcName of funcNameList) {
       if (baseClass.prototype[funcName]) {
-        if (funcName === VaasServerConfigKey) {
+        const baseClassMap = getVaasServerMap(baseClass.prototype)
+        if (baseClassMap.size > 0) {
+          const classItemMap = getVaasServerMap(classItem.prototype)
           baseClass.prototype[funcName] = new Map([
-            ...baseClass.prototype[funcName].entries(),
-            ...classItem.prototype[funcName].entries()
+            ...baseClassMap.entries(),
+            ...classItemMap.entries()
           ])
           continue
         }

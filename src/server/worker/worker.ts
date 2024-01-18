@@ -4,9 +4,9 @@ import { promises as fsPromises } from 'fs'
 import * as path from 'path'
 import { Readable, Writable, pipeline } from 'stream'
 
-import { VaasServerConfigKey } from '../lib/decorator'
+import { getVaasServerMap } from '../lib/decorator'
 import { workerPostMessage, rpcEventMap, getRpcEventName } from '../lib/rpc'
-import { type WorkerMessage, type ExecuteMessageBody, type ServerType } from '../../types/server'
+import { type WorkerMessage, type ExecuteMessageBody, type ServerType, WorkerMessageType } from '../../types/server'
 import { deprecate } from 'util'
 
 const packageInfo = require('../../../package.json')
@@ -26,7 +26,7 @@ export class VaasWorker {
     if (executeMessage.type === 'http') {
       workerPostMessage(
         {
-          type: 'result',
+          type: WorkerMessageType.result,
           data: {
             result: {
               isComplete,
@@ -43,7 +43,7 @@ export class VaasWorker {
     } else {
       workerPostMessage(
         {
-          type: 'result',
+          type: WorkerMessageType.result,
           data: {
             result: {
               isComplete,
@@ -61,17 +61,14 @@ export class VaasWorker {
   async run () {
     const appClass = await this.loadServer()
     const app = new appClass()
-    const appConfig = app[VaasServerConfigKey]
-    parentPort.on('message', async (message: WorkerMessage) => {
-      if (message.type === 'config') {
-        workerPostMessage({
-          type: 'config',
-          data: {
-            type: message.data.type,
-            appConfig
-          }
-        }); return
+    const appConfig = getVaasServerMap(app)
+    workerPostMessage({
+      type: WorkerMessageType.init,
+      data: {
+        appConfig
       }
+    })
+    parentPort.on('message', async (message: WorkerMessage) => {
       if (message.type === 'result' || message.type === 'error') {
         const callback = rpcEventMap.get(getRpcEventName(message.data.executeId))
         if (callback instanceof Function) {
@@ -98,7 +95,7 @@ export class VaasWorker {
       } catch (error) {
         workerPostMessage(
           {
-            type: 'error',
+            type: WorkerMessageType.error,
             data: {
               type: executeMessage.type,
               error,
@@ -197,7 +194,7 @@ export class VaasWorker {
 new VaasWorker().run().catch((error) => {
   workerPostMessage(
     {
-      type: 'error',
+      type: WorkerMessageType.error,
       data: {
         type: lastExecuteType,
         error
@@ -209,7 +206,7 @@ new VaasWorker().run().catch((error) => {
 process.on('uncaughtException', (error) => {
   workerPostMessage(
     {
-      type: 'error',
+      type: WorkerMessageType.error,
       data: {
         type: lastExecuteType,
         error
@@ -221,7 +218,7 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (error) => {
   workerPostMessage(
     {
-      type: 'error',
+      type: WorkerMessageType.error,
       data: {
         type: lastExecuteType,
         error

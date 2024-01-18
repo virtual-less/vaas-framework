@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { parentPort } from 'worker_threads'
 import { convertError2ErrorConfig } from './error'
-import { type ErrorMessage, type ResultMessage, type WorkerMessage } from '../../types/server'
+import { type ErrorMessage, type ResultMessage, type WorkerMessage, WorkerMessageType } from '../../types/server'
 
 export function workerPostMessage (
   value: WorkerMessage
@@ -15,9 +15,9 @@ export function workerPostMessage (
     parentPort.postMessage(value)
   } catch (error) {
     const errorMessage: ErrorMessage = {
-      type: 'error',
+      type: WorkerMessageType.error,
       data: {
-        type: value.data.type,
+        type: value.type !== WorkerMessageType.init ? value.data.type : 'http',
         error: convertError2ErrorConfig({
           error
         })
@@ -42,7 +42,7 @@ export async function rpcInvote<P, R> (appServerName: string, params: P): Promis
   const serveName = appServerNameData[2]
   const executeId = uuidv4()
   workerPostMessage({
-    type: 'execute',
+    type: WorkerMessageType.execute,
     data: {
       appName,
       serveName,
