@@ -11,6 +11,10 @@ export interface ServerValue {
   routerName?: string
 }
 
+export interface ServerRouterValue extends ServerValue {
+  routerFn?: Function
+}
+
 export interface AppConfig {
   maxWorkerNum: number
   allowModuleSet: Set<string>
@@ -278,7 +282,7 @@ export enum WorkerMessageType {
 
 export interface ExecuteMessageBody {
   appName: string
-  serveName: string
+  serveName?: string
   executeId: string
   type: ServerType
   params: any
@@ -318,7 +322,7 @@ export interface ErrorMessage {
 }
 
 export interface InitMessageBody {
-  appConfig?: Map<string, ServerValue>
+  status: 'ok' | 'error'
 }
 
 export interface InitMessage {

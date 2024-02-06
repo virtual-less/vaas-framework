@@ -1,9 +1,8 @@
 import { Worker, type WorkerOptions } from 'worker_threads'
 import { Buffer } from 'buffer'
-import { type Context } from 'koa'
 import { convertError2ErrorConfig, convertErrorConfig2Error } from '../lib/error'
 import {
-  type WorkerMessage, type ServerValue, type ExecuteMessageBody,
+  type WorkerMessage, type ExecuteMessageBody,
   type ExecuteMessage, type ResultMessage, type ErrorMessage,
   WorkerMessageType
 } from '../../types/server'
@@ -19,8 +18,6 @@ export class VaasWorker extends Worker {
   appName: string
   version: string
   poolInstance: any
-  appServerConfigMap: Map<string, ServerValue>
-  routerMiddleware: (ctx: Context) => Promise<void>
   createAt: number
   updateAt: number
   recycleTime: number
@@ -59,13 +56,6 @@ export class VaasWorker extends Worker {
           const executeMessageBody = message.data
           try {
             const vaasWorker: VaasWorker = await this.poolInstance.getWokerByAppName({ appName: executeMessageBody.appName, version: this.version })
-            const appServerConfigMap = vaasWorker.appServerConfigMap
-            const serverValue = appServerConfigMap.get(executeMessageBody.serveName)
-            if (serverValue.type !== executeMessageBody.type) {
-              throw new Error(`appName[${executeMessageBody.appName}]'s serveName[${
-                              executeMessageBody.serveName
-                          }] not matched type[${executeMessageBody.type}]`)
-            }
             const result = await vaasWorker.execute(executeMessageBody)
             const resultMessage: ResultMessage = {
               type: WorkerMessageType.result,
@@ -97,8 +87,7 @@ export class VaasWorker extends Worker {
             reject(convertErrorConfig2Error({ errorConfig: message.data.error }))
           }
         } else if (message.type === WorkerMessageType.init) {
-          this.appServerConfigMap = message.data.appConfig
-          resolve(message.data.appConfig)
+          resolve(true)
         }
       }
       this.on('message', messageFunc)

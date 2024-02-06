@@ -9,14 +9,12 @@ import { Request } from '../lib/request'
 import { Response } from '../lib/response'
 import { type VaasWorkerStream } from '../worker/workerStream'
 
-async function getServerWorker ({
+async function doRequestHandler ({
   ctx,
-  vaasWorkPool,
   getAppNameByRequest,
   getByPassFlowVersion
 }: {
   ctx: Koa.Context
-  vaasWorkPool: VaasWorkPool
   getAppNameByRequest: GetAppNameByRequest
   getByPassFlowVersion: GetByPassFlowVersion
 }) {
@@ -27,17 +25,22 @@ async function getServerWorker ({
     prefix = `/${appName}`
   }
   const { version } = await getByPassFlowVersion(appName)
-  ctx.appName = appName
-  ctx.version = version
+  return { appName, prefix, version }
+}
+
+async function getServerWorker ({
+  appName,
+  version,
+  vaasWorkPool
+}: {
+  appName: string
+  version: string
+  vaasWorkPool: VaasWorkPool
+}) {
   const vaasWorker = await vaasWorkPool.getWokerByAppName({
     appName,
     version
   })
-  await vaasWorker.routerMiddleware(ctx)
-  const nowPrefix = `/${ctx.params.prefix || ''}`
-  if (prefix !== nowPrefix) {
-    throw new Error(`this App(${ctx.appName})'s prefix(${prefix}) not matched now prefix(${nowPrefix})`)
-  }
   return vaasWorker
 }
 
@@ -58,15 +61,13 @@ export function webSocketStart ({
   server.on('upgrade', async (request, socket, head) => {
     const ctx = app.createContext(request, new ServerResponse(request))
     try {
+      const { appName, prefix, version } = await doRequestHandler({ ctx, getAppNameByRequest, getByPassFlowVersion })
       const vaasWorker = await getServerWorker({
-        ctx,
-        vaasWorkPool,
-        getAppNameByRequest,
-        getByPassFlowVersion
+        appName,
+        version,
+        vaasWorkPool
       })
-      if (!ctx.serveName) {
-        throw new Error(`this App(${ctx.appName}) not path has matched[${ctx.path}]`)
-      }
+      ctx.requestConfig = Request.getRequestConfigByRequest(ctx.request)
       wss.handleUpgrade(request, socket, head, (ws) => {
         async function webSocketMessage (wsRequestData, isBin) {
           let res: any
@@ -74,11 +75,14 @@ export function webSocketStart ({
           let resStream: VaasWorkerStream
           try {
             const { data, isStream, stream } = await vaasWorker.execute({
-              appName: ctx.appName,
-              serveName: ctx.serveName,
+              appName,
               executeId: uuidv4(),
-              type: ctx.serveValue.type,
-              params: isBin ? wsRequestData : wsRequestData.toString()
+              type: 'websocket',
+              params: {
+                prefix,
+                req: ctx.requestConfig,
+                data: isBin ? wsRequestData : wsRequestData.toString()
+              }
             })
             res = data
             isResStream = isStream
@@ -124,24 +128,20 @@ export function httpStart ({
   getByPassFlowVersion: GetByPassFlowVersion
 }) {
   return async function (ctx: Koa.Context) {
+    const { appName, prefix, version } = await doRequestHandler({ ctx, getAppNameByRequest, getByPassFlowVersion })
     const vaasWorker = await getServerWorker({
-      ctx,
-      vaasWorkPool,
-      getAppNameByRequest,
-      getByPassFlowVersion
+      appName,
+      version,
+      vaasWorkPool
     })
-    if (!ctx.serveName) {
-      throw new Error(`this App(${ctx.appName}) not path has matched[${ctx.path}]`)
-    }
     ctx.requestConfig = Request.getRequestConfigByRequest(ctx.request)
-    ctx.requestConfig.params = ctx.params
     ctx.responseConfig = Response.getResponseConfigByResponse(ctx.response)
     const { outRequestConfig, outResponseConfig, data, isStream, stream } = await vaasWorker.execute({
-      appName: ctx.appName,
-      serveName: ctx.serveName,
+      appName,
       executeId: uuidv4(),
-      type: ctx.serveValue.type,
+      type: 'http',
       params: {
+        prefix,
         req: ctx.requestConfig,
         res: ctx.responseConfig
       }

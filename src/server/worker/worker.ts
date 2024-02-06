@@ -3,10 +3,14 @@ import { parentPort, workerData } from 'worker_threads'
 import { promises as fsPromises } from 'fs'
 import * as path from 'path'
 import { Readable, Writable, pipeline } from 'stream'
+import { match as pathMatch } from 'path-to-regexp'
 
 import { getVaasServerMap } from '../lib/decorator'
 import { workerPostMessage, rpcEventMap, getRpcEventName } from '../lib/rpc'
-import { type WorkerMessage, type ExecuteMessageBody, type ServerType, WorkerMessageType } from '../../types/server'
+import {
+  type WorkerMessage, type ExecuteMessageBody, type ServerType,
+  type ServerValue, type ServerRouterValue, WorkerMessageType
+} from '../../types/server'
 import { deprecate } from 'util'
 
 const packageInfo = require('../../../package.json')
@@ -18,6 +22,41 @@ const pipelinePromise = async (source: any, destination: NodeJS.WritableStream) 
       resolve(writableStream)
     })
   })
+}
+
+const getWorkerRouteMap = (prefix, appConfig: Map<string, ServerValue>) => {
+  let routePrefix = prefix
+  if (!prefix || prefix === '/') {
+    routePrefix = ''
+  }
+  if (getWorkerRouteMap.appRouteMap.has(routePrefix)) {
+    return getWorkerRouteMap.appRouteMap.get(routePrefix)
+  }
+  const workerRouteMap = new Map<string, ServerRouterValue>()
+  for (const [serveName, serveConfig] of appConfig) {
+    workerRouteMap.set(serveName, {
+      type: serveConfig.type,
+      method: serveConfig.method,
+      routerName: serveConfig.routerName,
+      routerFn: pathMatch(`${routePrefix}${serveConfig.routerName || `/${serveName}`}`)
+    })
+  }
+  getWorkerRouteMap.appRouteMap.set(routePrefix, workerRouteMap)
+  return workerRouteMap
+}
+getWorkerRouteMap.appRouteMap = new Map<string, Map<string, ServerRouterValue>>()
+
+const workerRouteMatch = (path, workerRouteMap: Map<string, ServerRouterValue>) => {
+  for (const [serveName, serveConfig] of workerRouteMap) {
+    const matchResult = serveConfig.routerFn(path)
+    if (matchResult) {
+      return {
+        serveName,
+        params: matchResult.params
+      }
+    }
+  }
+  return null
 }
 
 let lastExecuteType: ServerType = null
@@ -62,12 +101,6 @@ export class VaasWorker {
     const appClass = await this.loadServer()
     const app = new appClass()
     const appConfig = getVaasServerMap(app)
-    workerPostMessage({
-      type: WorkerMessageType.init,
-      data: {
-        appConfig
-      }
-    })
     parentPort.on('message', async (message: WorkerMessage) => {
       if (message.type === 'result' || message.type === 'error') {
         const callback = rpcEventMap.get(getRpcEventName(message.data.executeId))
@@ -78,7 +111,25 @@ export class VaasWorker {
       if (message.type !== 'execute') { return }
       const executeMessage: ExecuteMessageBody = message.data
       lastExecuteType = executeMessage.type
+      if (executeMessage.type !== 'rpc') {
+        const workerRouteMap = getWorkerRouteMap(executeMessage.params?.prefix, appConfig)
+        const workerRouteMatchRes = workerRouteMatch(executeMessage.params.req.path, workerRouteMap)
+        if (!workerRouteMatchRes) {
+          throw new Error(`this App(${executeMessage.appName}) not path has matched [${executeMessage.params.req.path}]`)
+        }
+        executeMessage.params.req.params = workerRouteMatchRes.params
+        executeMessage.serveName = workerRouteMatchRes.serveName
+      }
       try {
+        if (!executeMessage.serveName) {
+          throw new Error(`this App(${executeMessage.appName}) not path has matched serveName`)
+        }
+        const serveConfig = appConfig.get(executeMessage.serveName)
+        if (executeMessage.type !== serveConfig.type) {
+          throw new Error(`appName[${executeMessage.appName}]'s serveName[${
+            executeMessage.serveName
+          }] not matched type[${executeMessage.type}]`)
+        }
         const data = await app[executeMessage.serveName](executeMessage.params)
         if (data instanceof Readable) {
           const ws = new Writable({
@@ -103,6 +154,12 @@ export class VaasWorker {
             }
           }
         )
+      }
+    })
+    workerPostMessage({
+      type: WorkerMessageType.init,
+      data: {
+        status: 'ok'
       }
     })
   }
