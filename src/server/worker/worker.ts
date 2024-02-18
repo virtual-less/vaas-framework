@@ -46,8 +46,12 @@ const getWorkerRouteMap = (prefix, appConfig: Map<string, ServerValue>) => {
 }
 getWorkerRouteMap.appRouteMap = new Map<string, Map<string, ServerRouterValue>>()
 
-const workerRouteMatch = (path, workerRouteMap: Map<string, ServerRouterValue>) => {
+const workerRouteMatch = ({ path, method }, workerRouteMap: Map<string, ServerRouterValue>) => {
+  const lowerCaseMethod = method.toLowerCase()
   for (const [serveName, serveConfig] of workerRouteMap) {
+    if (serveConfig.method && serveConfig.method !== lowerCaseMethod) {
+      continue
+    }
     const matchResult = serveConfig.routerFn(path)
     if (matchResult) {
       return {
@@ -113,9 +117,9 @@ export class VaasWorker {
       lastExecuteType = executeMessage.type
       if (executeMessage.type !== 'rpc') {
         const workerRouteMap = getWorkerRouteMap(executeMessage.params?.prefix, appConfig)
-        const workerRouteMatchRes = workerRouteMatch(executeMessage.params.req.path, workerRouteMap)
+        const workerRouteMatchRes = workerRouteMatch({ path: executeMessage.params.req.path, method: executeMessage.params.req.method }, workerRouteMap)
         if (!workerRouteMatchRes) {
-          throw new Error(`this App(${executeMessage.appName}) not path has matched [${executeMessage.params.req.path}]`)
+          throw new Error(`this App(${executeMessage.appName}) not path has matched (${executeMessage.params.req.method})[${executeMessage.params.req.path}]`)
         }
         executeMessage.params.req.params = workerRouteMatchRes.params
         executeMessage.serveName = workerRouteMatchRes.serveName
