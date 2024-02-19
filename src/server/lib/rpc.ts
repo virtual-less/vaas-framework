@@ -33,7 +33,7 @@ export function getRpcEventName (eventName: string): string {
 
 export const rpcEventMap = new Map<string, (message: WorkerMessage) => void>()
 
-export async function rpcInvote<P, R> (appServerName: string, params: P): Promise<R> {
+export async function rpcInvote<P=any, R=any, C extends object=any> (appServerName: string, params: P, context?: C): Promise<R> {
   const appServerNameData = /^(\w+)\.(\w+)$/.exec(appServerName)
   if (!appServerNameData) {
     throw new Error('rpc调用必须按照app.function名方式填写，app和function名称只支持数字字母下划线')
@@ -48,7 +48,7 @@ export async function rpcInvote<P, R> (appServerName: string, params: P): Promis
       serveName,
       executeId,
       type: 'rpc',
-      params
+      params: { params, context: context || {} }
     }
   })
   return await new Promise((resolve, reject) => {

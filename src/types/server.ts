@@ -255,6 +255,11 @@ export interface HttpParams {
   res: ResponseConfig
 }
 
+export interface RpcParams<P=any, C=any> {
+  params: P
+  context: C
+}
+
 export interface ErrorConfig {
   message: string
   name: string
