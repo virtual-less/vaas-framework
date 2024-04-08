@@ -1,5 +1,7 @@
 import { promises as fsPromises } from 'fs'
 import * as path from 'path'
+import * as os from 'os'
+
 export const getAppEntryPath = async ({ appName, appDirPath })=>{
     let appEntryPath = path.join(appDirPath, 'index.js')
     const appEntryPackageJsonPath = path.join(appDirPath, 'package.json')
@@ -24,4 +26,8 @@ export const getAppEntryPath = async ({ appName, appDirPath })=>{
       throw FileNotExistError
     }
     return appEntryPath
+}
+
+export const serverEOL = async ({ port }:{ port:number })=>{
+  return process.stdout.write(`${os.EOL} vaas server run: http://127.0.0.1:${port} ${os.EOL}`)
 }

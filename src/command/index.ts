@@ -7,6 +7,8 @@ import { promises as fsPromises } from 'fs'
 import * as compressing from 'compressing'
 
 import { VaasServer } from '../server/index'
+import { serverEOL } from '../server/lib/util'
+
 const packageInfo = require('../../package.json')
 const program = new Command()
 const vaasServer = new VaasServer()
@@ -59,8 +61,8 @@ program
   .option('-c, --configPath <configPath>', 'server config path')
   .action(async (options) => {
     const config = getConfig(options.configPath)
-    vaasServer.run(config)
-    process.stdout.write(`${os.EOL} vaas server run: http://127.0.0.1:${config.port} ${os.EOL}`)
+    await vaasServer.run(config)
+    serverEOL({port: config.port})
   })
 
 function getApiJsonError (apiJson) {

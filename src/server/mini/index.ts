@@ -3,7 +3,7 @@ import { type Server as HttpServer } from 'http'
 import * as KoaBodyparser from 'koa-bodyparser'
 
 import { outputCatch } from '../middleware/outputCatch'
-import { type VaasConfig } from '../../types/server'
+import { serverEOL } from '../lib/util'
 import { loadRouter } from './router'
 
 /**
@@ -37,7 +37,8 @@ export class MiniVaasServer {
       await loadRouter({app,appsDir})
       return await new Promise((resolve) => {
         this.server = app.listen(port, () => {
-          resolve(app)
+          serverEOL({port})
+          return resolve(app)
         })
       })
     }

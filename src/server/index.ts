@@ -47,7 +47,7 @@ export class VaasServer {
           getAppNameByRequest,
           getByPassFlowVersion
         })
-        resolve(app)
+        return resolve(app)
       })
     })
   }
@@ -56,7 +56,7 @@ export class VaasServer {
     return await new Promise((resolve, reject) => {
       this.server.close((error) => {
         if (error)reject(error)
-        resolve(true)
+        return resolve(true)
       })
     })
   }
