@@ -172,17 +172,8 @@ export class VaasWorker {
     // 关于文件的存在性，在初始化线程前判断，节约线程开支
     const appProgram = dynamicRun({
       filepath: await getAppEntryPath({ appName, appDirPath }),
-      extendVer: {
-        process: proxyData(process),
-        Buffer: proxyData(Buffer),
-        global: proxyData(global),
-        setTimeout: proxyData(setTimeout),
-        clearTimeout: proxyData(clearTimeout),
-        setInterval: proxyData(setInterval),
-        clearInterval: proxyData(clearInterval),
-        setImmediate: proxyData(setImmediate),
-        clearImmediate: proxyData(clearImmediate)
-      },
+      extendVer: {},
+      isGlobalContext:true,
       overwriteRequire: (callbackData) => {
         const useVmLoadDependencies = workerData.useVmLoadDependencies
         if (!useVmLoadDependencies && callbackData.moduleId[0] !== '.' && callbackData.moduleId[0] !== '/') {
