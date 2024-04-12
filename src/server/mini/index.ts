@@ -17,10 +17,12 @@ export class MiniVaasServer {
     async run ({
       appsDir, port,
       showErrorStack,
+      prefix,
       middlewares,
     }: {
       appsDir:string, port:number,
       showErrorStack:boolean,
+      prefix:string,
       middlewares:Array<Koa.Middleware>,
     }): Promise<Koa> {
       const app = new Koa()
@@ -34,7 +36,7 @@ export class MiniVaasServer {
       for(const middleware of middlewares) {
         app.use(middleware)
       }
-      await loadRouter({app,appsDir})
+      await loadRouter({app, prefix, appsDir})
       return await new Promise((resolve) => {
         this.server = app.listen(port, () => {
           serverEOL({port})

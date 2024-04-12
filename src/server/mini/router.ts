@@ -6,9 +6,9 @@ import * as Router from 'koa-router'
 import { getAppEntryPath } from '../lib/util'
 import { getVaasServerMap } from '../lib/decorator'
 
-export const loadRouter = async ({app, appsDir}:{app:Koa,appsDir:string})=>{
+export const loadRouter = async ({ app, prefix, appsDir}:{app:Koa,prefix:string,appsDir:string})=>{
     const appsDirList = await fsPromises.readdir(appsDir)
-    const router = new Router()
+    const router = prefix?new Router({prefix}):new Router()
     for(const appName of appsDirList) {
         if(['.','..'].includes(appName)){continue}
         const appDirPath = path.join(appsDir, appName)
