@@ -4,8 +4,11 @@ export function outputCatch ({ showErrorStack }: { showErrorStack: boolean }) {
       await next()
       ctx.status = ctx?.response?.status || 200
     } catch (err) {
-      ctx.status = ctx?.response?.status || 500
+      ctx.status = err?.status || ctx?.response?.status || 500
       const outputData = { ...err }
+      if(err instanceof Error) {
+        outputData.message = err.message
+      }
       if (showErrorStack) {
         outputData.stack = err.stack
       }
