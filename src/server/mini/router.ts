@@ -1,33 +1,64 @@
-import { promises as fsPromises } from 'fs'
-import * as Koa from 'koa'
-import * as path from 'path'
 import * as Router from 'koa-router'
+import type * as Koa from 'koa'
 
-import { getAppEntryPath } from '../lib/util'
 import { getVaasServerMap } from '../lib/decorator'
 
-export const loadRouter = async ({ app, prefix, appsDir}:{app:Koa,prefix:string,appsDir:string})=>{
-    const appsDirList = await fsPromises.readdir(appsDir)
-    const router = prefix?new Router({prefix}):new Router()
-    for(const appName of appsDirList) {
-        if(['.','..'].includes(appName)){continue}
-        const appDirPath = path.join(appsDir, appName)
-        const appEntryPath = await getAppEntryPath({appName, appDirPath})
-        const appClass = require(appEntryPath).default
-        const appInstance = new appClass()
-        const vaasServerMap = getVaasServerMap(appInstance)
-        const appRouter = new Router()
-        for (const [serveName, serveConfig] of vaasServerMap) {
-            if(serveConfig.type!=='http') {
-                throw new Error(`[${appName}][${serveName}]使用的是简易框架，仅支持http类型`)
-            }
-            const method = serveConfig.method?serveConfig.method:'all';
-            const routerName = serveConfig.routerName?serveConfig.routerName:`/${serveName}`
-            appRouter[method](routerName, async (ctx)=>{
-                ctx.body = await appInstance[serveName]({req: ctx.request, res: ctx.response})
-            })
-        }
-        router.use(`/${appName}`, appRouter.routes(), appRouter.allowedMethods());
+const loadRouter = async ({ prefix, appList, routerFunction }: { prefix: string, routerFunction: ({ serveConfig, appRouter, appName, serveName, appInstance }) => void, appList: Array<{ appName: string, appInstance: any }> }) => {
+  const router = prefix ? new Router({ prefix }) : new Router()
+  for (const appInfo of appList) {
+    const { appName, appInstance } = appInfo
+    const vaasServerMap = getVaasServerMap(appInstance)
+    const appRouter = new Router()
+    for (const [serveName, serveConfig] of vaasServerMap) {
+      const method = serveConfig.method ? serveConfig.method : 'all'
+      const routerName = serveConfig.routerName ? serveConfig.routerName : `/${serveName}`
+      if (['http', 'websocket'].includes(serveConfig.type)) {
+        routerFunction({ serveConfig, appRouter, appName, serveName, appInstance })
+        appRouter[method](routerName, async (ctx) => {
+          ctx.body = await appInstance[serveName]({ req: ctx.request, res: ctx.response })
+        })
+      } else {
+        throw new Error(`[${appName}][${serveName}]使用的是简易框架，不支持${serveConfig.type}类型`)
+      }
     }
-    return app.use(router.routes()).use(router.allowedMethods());
+    router.use(`/${appName}`, appRouter.routes(), appRouter.allowedMethods())
+  }
+  return router
+}
+
+export const loadHttpRouter = async ({ app, prefix, appList }: { app: Koa, prefix: string, appList: Array<{ appName: string, appInstance: any }> }) => {
+  const router = await loadRouter({
+    prefix,
+    appList,
+    routerFunction: ({ serveConfig, appRouter, serveName, appInstance }) => {
+      if (serveConfig.type === 'http') {
+        const method = serveConfig.method ? serveConfig.method : 'all'
+        const routerName = serveConfig.routerName ? serveConfig.routerName : `/${serveName}`
+        appRouter[method](routerName, async (ctx) => {
+          ctx.body = await appInstance[serveName]({ req: ctx.request, res: ctx.response })
+        })
+      }
+    }
+  })
+  const routes = router.routes()
+  app.use(routes).use(router.allowedMethods())
+}
+
+export const loadWebsocketRouter = async ({ prefix, appList }: { prefix: string, appList: Array<{ appName: string, appInstance: any }> }) => {
+  const router = await loadRouter({
+    prefix,
+    appList,
+    routerFunction: ({ serveConfig, appRouter, serveName, appInstance }) => {
+      if (serveConfig.type === 'websocket') {
+        const method = serveConfig.method ? serveConfig.method : 'all'
+        const routerName = serveConfig.routerName ? serveConfig.routerName : `/${serveName}`
+        appRouter[method](routerName, async (ctx) => {
+          const data = await appInstance[serveName]({ req: ctx.request, data: ctx._websocketData })
+          ctx._websocketSend(data)
+        })
+      }
+    }
+  })
+  const routes = router.routes()
+  return routes
 }

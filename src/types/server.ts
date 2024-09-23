@@ -11,6 +11,14 @@ export interface ServerValue {
   routerName?: string
 }
 
+export interface HttpServerValue {
+  method?: 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options'
+  routerName?: string
+}
+
+// 目前Websocket和HTTP基本一致
+export type WebsocketServerValue = HttpServerValue
+
 export interface ServerRouterValue extends ServerValue {
   routerFn?: Function
 }
