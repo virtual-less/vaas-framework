@@ -10,13 +10,8 @@ const loadRouter = async ({ prefix, appList, routerFunction }: { prefix: string,
     const vaasServerMap = getVaasServerMap(appInstance)
     const appRouter = new Router()
     for (const [serveName, serveConfig] of vaasServerMap) {
-      const method = serveConfig.method ? serveConfig.method : 'all'
-      const routerName = serveConfig.routerName ? serveConfig.routerName : `/${serveName}`
       if (['http', 'websocket'].includes(serveConfig.type)) {
         routerFunction({ serveConfig, appRouter, appName, serveName, appInstance })
-        appRouter[method](routerName, async (ctx) => {
-          ctx.body = await appInstance[serveName]({ req: ctx.request, res: ctx.response })
-        })
       } else {
         throw new Error(`[${appName}][${serveName}]使用的是简易框架，不支持${serveConfig.type}类型`)
       }
